@@ -34,6 +34,7 @@ export async function assessWarning(input: {
   const signal = AbortSignal.any([AbortSignal.timeout(TARGET_TIMEOUT_MS), ...(input.signal ? [input.signal] : [])]);
   try {
     const extraction = await extractClaims({ gateway, text: target.text, signal, meter });
+    if (extraction.rejectedClaims > 0) throw new ModelFailure('model_invalid_output');
     const questions = questionsFor({ facts: target.facts, claims: extraction.claims });
     const judgements = await judge({ gateway, text: target.text, questions, signal, meter });
     return { kind: 'checked', findings: findingsFrom({ facts: target.facts, claims: extraction.claims, judgements }) };

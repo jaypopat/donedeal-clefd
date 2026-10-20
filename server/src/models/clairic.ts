@@ -71,9 +71,11 @@ export async function extractClaims(input: {
 
   const claims: Partial<Record<ClaimName, Claim>> = {};
   let rejectedClaims = 0;
-  for (const [name, answer] of Object.entries(result.data.answers)) {
-    if (!isClaimName(name)) continue;
-    const claim = verifiedClaim(input.text, answer);
+  for (const name of Object.keys(CLAIM_FIELDS) as ClaimName[]) {
+    if (!Object.hasOwn(result.data.answers, name) || result.data.answers[name] === undefined) {
+      throw new ModelFailure('model_invalid_output');
+    }
+    const claim = verifiedClaim(input.text, result.data.answers[name]);
     if (claim === 'rejected') rejectedClaims += 1;
     else if (claim !== 'absent') claims[name] = claim;
   }

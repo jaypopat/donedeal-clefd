@@ -10,8 +10,9 @@ import type { SendOutcome } from '../../lib/extension/scheduler';
 import type { StorageArea } from '../../lib/extension/store';
 import { createStore } from '../../lib/extension/store';
 import { handle } from '../../server/src/http';
+import { CLAIM_FIELDS } from '../../server/src/models/clairic';
 import { facts } from './listings';
-import { clefResult } from './models';
+import { clefResult, simulatedNullClaim } from './models';
 
 export const NOW = 1_792_000_000_000;
 const ORIGIN = 'chrome-extension://abcdefghijklmnopabcdefghijklmnop';
@@ -51,7 +52,10 @@ export function harness(options: { modelsFail?: boolean } = {}) {
   const ai = {
     async run(model: string) {
       if (options.modelsFail) throw new Error('model down');
-      if (model === '@cf/cloudflare/clairic') return { model: 'clairic', answers: {}, truncated: false, usage: { input_tokens: 10 } };
+      if (model === '@cf/cloudflare/clairic') {
+        const answers = Object.fromEntries(Object.keys(CLAIM_FIELDS).map((name) => [name, simulatedNullClaim()]));
+        return { model: 'clairic', answers, truncated: false, usage: { input_tokens: 10 } };
+      }
       return clefResult({});
     },
   };
