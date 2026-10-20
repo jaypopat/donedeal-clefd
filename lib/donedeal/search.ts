@@ -149,8 +149,8 @@ function observeCard(element: Element, data: SearchData | null): CardObservation
   const price = headline.kind === 'missing' && ad ? (cashFromAd(ad) ?? headline) : headline;
   const adKm = ad?.mileageInKm;
   const mileage: Mileage | null = typeof adKm === 'number' ? { value: adKm, unit: 'km' } : meta.mileage;
-  const filters = ad && data ? data.filters : null;
-  const sellerType = ad ? (filters?.sellerType ?? (ad.dealer ? 'dealer' : 'private')) : null;
+  const filters = !promoted && data ? data.filters : null;
+  const sellerType = filters?.sellerType ?? (ad?.dealer ? 'dealer' : null);
   const facts = ListingFactsSchema.safeParse({
     listingId: ref.id,
     url: ref.url,

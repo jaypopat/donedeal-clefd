@@ -13,6 +13,11 @@ function searchPage(url: string, nextData: unknown) {
   return { data, cards: observeCards(doc, data) };
 }
 
+function cardHtml(path: string, title: string, price: string, meta: string[]): string {
+  const metaItems = meta.map((m) => `<li class="SearchCard-styled__MetaInfoItem-sc-39d5dfe0-8">${m}</li>`).join('');
+  return `<div class="Card-styled__Container-sc-b6c81d2b-0"><div class="Card-styled__CardBody-sc-b6c81d2b-1"><div class="SearchCard-styled__HeaderContainer-sc-39d5dfe0-2"><div class="SearchCard-styled__Header-sc-39d5dfe0-3"><div class="SearchCard-styled__TitleMetaContainer-sc-39d5dfe0-4"><h3 class="SearchCard-styled__Title-sc-39d5dfe0-6"><a href="${path}" class="SearchCard-styled__StretchedLink-sc-39d5dfe0-5">${title}</a></h3><ul class="SearchCard-styled__MetaInfo-sc-39d5dfe0-7">${metaItems}</ul></div></div></div><div class="Card-styled__Footer-sc-b6c81d2b-2"><div class="Price-styled__Wrapper-sc-a8cc31d3-0"><div class="Price-styled__Price-sc-a8cc31d3-3"><span>${price}</span></div></div></div></div></div>`;
+}
+
 describe('search cards', () => {
   test('enumerates every rendered card, including promoted cards absent from page data', () => {
     const { cards } = searchPage('https://www.donedeal.ie/cars?area=Dublin', fixtureJson('search-next-data.json'));
@@ -64,6 +69,84 @@ describe('search cards', () => {
     const promoted = cards.filter((card) => card.facts.listingId !== '42864633');
     expect(toyota?.facts).toMatchObject({ make: 'Toyota', model: 'Aqua', transmission: 'automatic' });
     expect(promoted.every((card) => card.facts.make === null && card.facts.transmission === null)).toBe(true);
+  });
+
+  test('inherits verified search filters for organic cards absent from initial ads, leaves promoted cards DOM-only, and rejects stale query data', () => {
+    const newOrganicHtml = cardHtml(
+      '/cars-for-sale/2019-toyota-aqua-scrolled/50000001',
+      '2019 Toyota Aqua Hybrid',
+      '€12,500',
+      ['2019', '1.5 Petrol Hybrid', '45,000 km'],
+    );
+    const promotedHtml = cardHtml(
+      '/cars-for-sale/2020-ford-fiesta/50000002?campaign=9',
+      '2020 Ford Fiesta Promoted',
+      '€14,000',
+      ['2020', '1.0 Petrol', '30,000 km'],
+    );
+    const unevidencedDealerAdHtml = cardHtml(
+      '/cars-for-sale/2015-toyota-aqua-no-dealer/42383659',
+      '2015 Toyota Aqua Private',
+      '€9,000',
+      ['2015', '1.5 Petrol Hybrid', '90,000 km'],
+    );
+    const combinedHtml = `${fixtureText('search-cards.html')}${newOrganicHtml}${promotedHtml}${unevidencedDealerAdHtml}`;
+    const nextData = fixtureJson('search-next-data-toyota-aqua-automatic.json');
+    const validUrl = 'https://www.donedeal.ie/cars/Toyota/Aqua?transmission=Automatic';
+
+    const location = new URL(validUrl);
+    const route = classifyPage(location);
+    if (route.kind !== 'search') throw new Error('not a search route');
+    const doc = documentFrom(`${combinedHtml}${nextDataScript(nextData)}`, validUrl);
+    const data = readSearchData({ doc, location, params: route.params, pathSegments: route.pathSegments });
+    const cards = observeCards(doc, data);
+
+    // Initial SSR organic ad with dealer metadata (42864633)
+    const initialOrganic = cards.find((c) => c.facts.listingId === '42864633');
+    expect(initialOrganic?.facts).toMatchObject({
+      make: 'Toyota',
+      model: 'Aqua',
+      transmission: 'automatic',
+      sellerType: 'dealer',
+    });
+
+    // Scrolled organic card absent from initial SSR ads (50000001) inherits search context
+    const scrolledOrganic = cards.find((c) => c.facts.listingId === '50000001');
+    expect(scrolledOrganic).toBeDefined();
+    expect(scrolledOrganic?.facts).toMatchObject({
+      make: 'Toyota',
+      model: 'Aqua',
+      transmission: 'automatic',
+      sellerType: null,
+    });
+
+    // Initial SSR ad with absent dealer metadata (42383659) never infers private seller
+    const adWithoutDealer = cards.find((c) => c.facts.listingId === '42383659');
+    expect(adWithoutDealer).toBeDefined();
+    expect(adWithoutDealer?.facts.sellerType).toBeNull();
+
+    // Promoted card (50000002) remains DOM-only
+    const promoted = cards.find((c) => c.facts.listingId === '50000002');
+    expect(promoted).toBeDefined();
+    expect(promoted?.facts).toMatchObject({
+      make: null,
+      model: null,
+      transmission: null,
+      sellerType: null,
+    });
+
+    // Stale search query rejection: URL parameters do not match embedded nextData
+    const staleUrl = 'https://www.donedeal.ie/cars/Toyota/Aqua?transmission=Manual';
+    const staleLocation = new URL(staleUrl);
+    const staleRoute = classifyPage(staleLocation);
+    if (staleRoute.kind !== 'search') throw new Error('not a search route');
+    const staleData = readSearchData({ doc, location: staleLocation, params: staleRoute.params, pathSegments: staleRoute.pathSegments });
+    expect(staleData).toBeNull();
+    const staleCards = observeCards(doc, staleData);
+    const staleScrolled = staleCards.find((c) => c.facts.listingId === '50000001');
+    expect(staleScrolled?.facts.make).toBeNull();
+    expect(staleScrolled?.facts.transmission).toBeNull();
+    expect(staleScrolled?.facts.sellerType).toBeNull();
   });
 
   test('ignores embedded data that belongs to a different search', () => {
