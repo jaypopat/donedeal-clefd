@@ -106,7 +106,8 @@ export const EssentialFieldSchema = z.enum([
 export type EssentialField = z.infer<typeof EssentialFieldSchema>;
 
 export const InsufficientReasonSchema = z.discriminatedUnion('code', [
-  z.strictObject({ code: z.literal('non_cash_price') }),
+  z.strictObject({ code: z.literal('no_cash_price') }),
+  z.strictObject({ code: z.literal('damage_mentioned') }),
   z.strictObject({
     code: z.literal('unknown_facts'),
     fields: z.tuple([EssentialFieldSchema], EssentialFieldSchema),
