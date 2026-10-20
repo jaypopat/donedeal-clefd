@@ -1,5 +1,5 @@
 import type { Comparable, EssentialField, InsufficientReason, PriceLabel, PriceResult } from '../../lib/contracts/assess';
-import type { ListingFacts } from '../../lib/contracts/listing';
+import type { Fuel, ListingFacts, Mileage, SellerType, Transmission } from '../../lib/contracts/listing';
 import { mileageKm } from '../../lib/contracts/listing';
 import { LIMITS } from '../../lib/contracts/versions';
 
@@ -17,9 +17,20 @@ export const PRICE_POLICY = {
 
 type Window = { years: number; km: number; kmRatio: number };
 
+type ValidatedListingFacts = ListingFacts & {
+  price: { kind: 'cash'; eur: number };
+  year: number;
+  mileage: Mileage;
+  make: string;
+  model: string;
+  fuel: Fuel;
+  transmission: Transmission;
+  sellerType: SellerType;
+};
+
 /** A listing with every essential fact known and a plausible cash price. */
 type Comparand = {
-  facts: ListingFacts;
+  facts: ValidatedListingFacts;
   eur: number;
   km: number;
   year: number;
@@ -41,7 +52,18 @@ function toComparand(facts: ListingFacts): Comparand | null {
   const { make, model, fuel, transmission, sellerType, year, mileage } = facts;
   if (!make || !model || !fuel || !transmission || !sellerType || year === null || !mileage) return null;
   const identity = [normalisedName(make), normalisedName(model), fuel, transmission, sellerType].join('|');
-  return { facts, eur: facts.price.eur, km: mileageKm(mileage), year, identity };
+  const validatedFacts: ValidatedListingFacts = {
+    ...facts,
+    price: facts.price,
+    year,
+    mileage,
+    make,
+    model,
+    fuel,
+    transmission,
+    sellerType,
+  };
+  return { facts: validatedFacts, eur: facts.price.eur, km: mileageKm(mileage), year, identity };
 }
 
 function withinWindow(target: Comparand, candidate: Comparand, window: Window): boolean {

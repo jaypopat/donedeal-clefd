@@ -98,7 +98,6 @@ export async function newDetail(observed: Observed, now: number): Promise<Detail
   return { kind: 'detail', observedAt: now, binding: await bindingFor(observed, 'detail', undefined) };
 }
 
-/** Accepts a price only for the exact context, sample and target facts that were submitted. */
 export function acceptPrice(model: PageModel, delivery: PriceDelivery): PageModel | null {
   if (model.kind === 'detail') {
     const { binding } = model;
@@ -115,7 +114,6 @@ export function acceptPrice(model: PageModel, delivery: PriceDelivery): PageMode
   return { ...model, bindings };
 }
 
-/** Accepts a warning only for the exact content fingerprint that was submitted. */
 export function acceptWarning(model: PageModel, delivery: WarningDelivery): PageModel | null {
   const binding = model.kind === 'detail' ? model.binding : model.bindings.get(delivery.listingId);
   if (!binding || binding.facts.listingId !== delivery.listingId || binding.contentFp !== delivery.contentFp) return null;
@@ -126,7 +124,6 @@ export function acceptWarning(model: PageModel, delivery: WarningDelivery): Page
   return { ...model, bindings };
 }
 
-/** After local data is cleared, nothing shown so far may survive. */
 export function resetBranches(model: PageModel): PageModel {
   const reset = (binding: Binding): Binding => ({
     ...binding,

@@ -15,11 +15,8 @@ function evidenceMatches(result: WarningTargetResult, text: string): boolean {
   );
 }
 
-/**
- * Keeps only results whose identity and evidence match what was sent. A dropped
- * result surfaces as unavailable for that target alone.
- */
-async function verified(request: AssessRequest, response: AssessResponse): Promise<AssessResponse | null> {
+/** Keeps only results whose identity and evidence match what was sent. */
+async function filterSubmittedResults(request: AssessRequest, response: AssessResponse): Promise<AssessResponse | null> {
   if (response.requestId !== request.requestId) return null;
   let price: AssessResponse['price'] = null;
   if (request.price && response.price && response.price.contextId === request.price.contextId) {
@@ -70,7 +67,7 @@ export function createAssessClient(config: { baseUrl: string; fetch?: Fetch }) {
     if (!response.ok) return { kind: 'failed', error: 'service_unavailable' };
     const parsed = AssessResponseSchema.safeParse(await response.json().catch(() => null));
     if (!parsed.success) return { kind: 'failed', error: 'invalid_response' };
-    const checked = await verified(request, parsed.data);
+    const checked = await filterSubmittedResults(request, parsed.data);
     return checked ? { kind: 'response', response: checked } : { kind: 'failed', error: 'invalid_response' };
   };
 }
