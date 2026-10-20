@@ -37,8 +37,14 @@ export function BadgeRow({ view }: { view: CardView }) {
       element.style.width = `${width}px`;
       element.style.maxHeight = `${height}px`;
       element.style.left = `${Math.max(12, Math.min(rect.left, window.innerWidth - width - 12))}px`;
-      const below = window.innerHeight - rect.bottom;
-      element.style.top = `${below >= Math.min(height, 300) ? rect.bottom + 6 : Math.max(12, rect.top - Math.min(element.scrollHeight, height) - 6)}px`;
+      const below = Math.max(0, window.innerHeight - 12 - rect.bottom - 6);
+      const above = Math.max(0, rect.top - 12 - 6);
+      const measured = element.getBoundingClientRect().height;
+      const useBelow = below >= measured || below >= above;
+      element.style.maxHeight = `${Math.min(height, useBelow ? below : above)}px`;
+      const placedHeight = element.getBoundingClientRect().height;
+      const top = useBelow ? rect.bottom + 6 : rect.top - placedHeight - 6;
+      element.style.top = `${Math.max(12, Math.min(top, window.innerHeight - placedHeight - 12))}px`;
     };
     element.showPopover();
     place();
