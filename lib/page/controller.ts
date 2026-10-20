@@ -3,7 +3,7 @@ import { classifyPage } from '../donedeal/page';
 import { observeCards, readSearchData } from '../donedeal/search';
 import { observeDetail } from '../donedeal/detail';
 import type { CardView } from '../display/views';
-import { BackgroundMessageSchema, type PageMessage } from '../messages';
+import { BackgroundMessageSchema, MAX_PAGE_CARDS, type PageMessage } from '../messages';
 import { acceptPrice, acceptWarning, newDetail, newSearch, openingFor, reconcileSearch, syncFor, viewOf, type PageModel } from './model';
 
 export type MountedBadge = { update(view: CardView): void; remove(): void };
@@ -107,7 +107,7 @@ export function createPageController(deps: ControllerDeps) {
     const anchors = new Map<ListingId, Element>();
     if (route.kind === 'search') {
       const data = readSearchData({ doc: deps.doc, location, params: route.params, pathSegments: route.pathSegments });
-      const cards = observeCards(deps.doc, data).slice(0, 300);
+      const cards = observeCards(deps.doc, data).slice(0, MAX_PAGE_CARDS);
       for (const card of cards) anchors.set(card.facts.listingId, card.anchor);
       const search = previous?.kind === 'search' && previous.searchKey === route.searchKey ? previous : newSearch(route.searchKey, now);
       next = (await reconcileSearch(search, cards, now)).model;
