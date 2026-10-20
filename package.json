@@ -12,6 +12,7 @@
     "test": "bun test",
     "worker:dev": "bun scripts/dev-worker.ts",
     "worker:smoke": "bun scripts/smoke-worker.ts",
+    "verify:browser": "node scripts/verify-browser.cjs",
     "worker:check": "WRANGLER_SEND_METRICS=false wrangler deploy --dry-run --config server/wrangler.jsonc --outdir .output/worker",
     "check": "bun run compile && bun test && bun run build && bun run worker:check",
     "postinstall": "wxt prepare"
@@ -27,6 +28,7 @@
     "@types/react-dom": "^19.2.3",
     "@wxt-dev/module-react": "^1.1.5",
     "happy-dom": "^21.0.3",
+    "playwright-core": "1.58.2",
     "typescript": "^5.9.3",
     "web-ext": "^10.5.0",
     "wrangler": "^4.151.3",
