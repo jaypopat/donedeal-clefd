@@ -42,7 +42,7 @@ export function parseYear(text: string): number | null {
 }
 
 export function parseMileageText(text: string): Mileage | null {
-  const match = /^(\d{1,3}(?:,\d{3})*|\d+)\s*(km|kms|mi|miles)$/i.exec(cleanText(text));
+  const match = /^(\d{1,3}(?:,\d{3})*|\d+)\s*(km|kms|mi|miles|mls)$/i.exec(cleanText(text));
   if (!match?.[1] || !match[2]) return null;
   const value = Number(match[1].replaceAll(',', ''));
   return { value, unit: match[2].toLowerCase().startsWith('k') ? 'km' : 'mi' };

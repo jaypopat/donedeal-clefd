@@ -52,7 +52,7 @@ function said(input: PolicyInput, question: QuestionName): boolean {
 
 /** Odometer reading in a phrase such as "120,000 km" or "40K MILES". */
 export function claimedKm(excerpt: string): number | null {
-  const match = /(\d+(?:[.,]\d+)*)\s*(k|thousand)?\s*(kms?|kilomet(?:er|re)s?|mi|miles?)\b/i.exec(excerpt);
+  const match = /(\d+(?:[.,]\d+)*)\s*(k|thousand)?\s*(kms?|kilomet(?:er|re)s?|mi|miles?|mls)\b/i.exec(excerpt);
   if (!match?.[1] || !match[3]) return null;
   const number = Number(match[1].replace(/[.,](?=\d{3}\b)/g, '').replace(',', '.'));
   if (!Number.isFinite(number)) return null;
