@@ -39,6 +39,28 @@ function storedEntries(h: ReturnType<typeof harness>) {
   return CacheSchema.parse(h.local.data.get('tyrekick.assessments') ?? { version: 1, generation: 0, entries: [] }).entries;
 }
 
+function delayNext<Args extends unknown[], Result>(operation: (...args: Args) => Promise<Result>) {
+  let release = () => {};
+  let entered = () => {};
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const started = new Promise<void>((resolve) => { entered = resolve; });
+  let held = false;
+  return {
+    started,
+    release: () => release(),
+    async run(...args: Args): Promise<Result> {
+      const shouldHold = !held;
+      held = true;
+      const result = await operation(...args);
+      if (shouldHold) {
+        entered();
+        await gate;
+      }
+      return result;
+    },
+  };
+}
+
 describe('consent', () => {
   test('sends nothing before consent', async () => {
     const h = harness();
@@ -142,6 +164,185 @@ describe('caching', () => {
 });
 
 describe('pause and clear', () => {
+  for (const control of ['pause', 'clear-data'] as const) {
+    for (const cached of [false, true]) {
+      test(`${control} rejects ${cached ? 'cached delivery' : 'requests'} from a preparing snapshot`, async () => {
+        const h = await enabled();
+        const nonce = await connect(h, 'doc');
+        const sync = searchSync(nonce, cards(3));
+        if (cached) {
+          await h.background.onPageMessage('doc', sync);
+          await until(() => h.inFlight === 0 && storedEntries(h).length === 6);
+        }
+        const held = delayNext(h.store.snapshot);
+        h.store.snapshot = held.run;
+        const preparing = h.background.onPageMessage('doc', sync);
+        await held.started;
+        await h.background.onPopupMessage({ type: control });
+        const requestCount = h.requests.length;
+        const messageCount = h.posted.length;
+        held.release();
+        await preparing;
+        expect(h.requests).toHaveLength(requestCount);
+        expect(h.posted).toHaveLength(messageCount);
+      });
+    }
+
+    test(`${control} rejects search work already fingerprinting`, async () => {
+      const h = await enabled();
+      const nonce = await connect(h, 'doc');
+      const held = delayNext(crypto.subtle.digest.bind(crypto.subtle));
+      const digest = spyOn(crypto.subtle, 'digest').mockImplementation(held.run);
+      try {
+        const preparing = h.background.onPageMessage('doc', searchSync(nonce, cards(3)));
+        await held.started;
+        await h.background.onPopupMessage({ type: control });
+        const before = h.posted.length;
+        held.release();
+        await preparing;
+        expect(h.requests).toEqual([]);
+        expect(h.posted).toHaveLength(before);
+      } finally {
+        held.release();
+        digest.mockRestore();
+      }
+    });
+
+    test(`${control} rejects detail work looking up its originating price`, async () => {
+      const h = await enabled();
+      const nonce = await connect(h, 'doc');
+      const held = delayNext(h.store.findOpening);
+      h.store.findOpening = held.run;
+      const preparing = h.background.onPageMessage('doc', {
+        type: 'sync', documentNonce: nonce,
+        page: { kind: 'detail', facts: facts({ id: '45000001' }), text: redact('Full service history.'), observedAt: NOW },
+      });
+      await held.started;
+      await h.background.onPopupMessage({ type: control });
+      const before = h.posted.length;
+      held.release();
+      await preparing;
+      expect(h.requests).toEqual([]);
+      expect(h.posted).toHaveLength(before);
+    });
+
+    test(`${control} rejects cached detail results while warning preparation finishes`, async () => {
+      const h = await enabled();
+      const nonce = await connect(h, 'doc');
+      const sync = {
+        type: 'sync', documentNonce: nonce,
+        page: { kind: 'detail', facts: facts({ id: '45000001' }), text: redact('Full service history.'), observedAt: NOW },
+      };
+      await h.background.onPageMessage('doc', sync);
+      await until(() => h.inFlight === 0 && storedEntries(h).length === 1);
+      const original = crypto.subtle.digest.bind(crypto.subtle);
+      const held = delayNext(original);
+      let calls = 0;
+      const digest = spyOn(crypto.subtle, 'digest').mockImplementation((...args) => ++calls === 2 ? held.run(...args) : original(...args));
+      try {
+        const before = h.posted.length;
+        const preparing = h.background.onPageMessage('doc', sync);
+        await held.started;
+        await h.background.onPopupMessage({ type: control });
+        held.release();
+        await preparing;
+        expect(h.posted.slice(before).map((entry) => entry.message)).toEqual([
+          { type: 'status', active: control !== 'pause', generation: control === 'clear-data' ? 1 : 0 },
+        ]);
+        expect(h.requests).toHaveLength(1);
+      } finally {
+        held.release();
+        digest.mockRestore();
+      }
+    });
+  }
+
+  test('pause blocks admission before its settings write commits', async () => {
+    const h = await enabled();
+    const nonce = await connect(h, 'doc');
+    const preparation = delayNext(h.store.snapshot);
+    h.store.snapshot = preparation.run;
+    const preparing = h.background.onPageMessage('doc', searchSync(nonce, cards(3)));
+    await preparation.started;
+    const write = delayNext(async () => {});
+    const set = h.local.set;
+    h.local.set = async (key, value) => {
+      if (key === 'tyrekick.settings') await write.run();
+      await set(key, value);
+    };
+    const pausing = h.background.onPopupMessage({ type: 'pause' });
+    await write.started;
+    preparation.release();
+    await preparing;
+    await h.background.onPageMessage('doc', searchSync(nonce, cards(2, 47000000)));
+    const requests = [...h.requests];
+    write.release();
+    await pausing;
+    expect(requests).toEqual([]);
+    expect(priceDeliveries(h.messagesFor('doc'))).toEqual([]);
+  });
+
+  test('clear blocks admission until the generation commits and requests a fresh sync', async () => {
+    const h = await enabled();
+    const nonce = await connect(h, 'doc');
+    const write = delayNext(async () => {});
+    const set = h.local.set;
+    h.local.set = async (key, value) => {
+      if (key === 'tyrekick.assessments') await write.run();
+      await set(key, value);
+    };
+    const clearing = h.background.onPopupMessage({ type: 'clear-data' });
+    await write.started;
+    await h.background.onPageMessage('doc', searchSync(nonce, cards(3)));
+    const requests = [...h.requests];
+    write.release();
+    await clearing;
+    expect(requests).toEqual([]);
+    expect(h.messagesFor('doc').at(-1)).toEqual({ type: 'status', active: true, generation: 1 });
+    await h.background.onPageMessage('doc', searchSync(nonce, cards(3)));
+    await until(() => h.inFlight === 0 && storedEntries(h).length === 6);
+    expect(h.requests).toHaveLength(1);
+  });
+
+  for (const controls of [['enable', 'pause'], ['pause', 'enable']] as const) {
+    test(`an earlier ${controls[0]} completion cannot admit work during a later ${controls[1]}`, async () => {
+      const h = await enabled();
+      const nonce = await connect(h, 'doc');
+      const preparation = delayNext(h.store.snapshot);
+      h.store.snapshot = preparation.run;
+      const preparing = h.background.onPageMessage('doc', searchSync(nonce, cards(3)));
+      await preparation.started;
+      const firstWrite = delayNext(async () => {});
+      const secondWrite = delayNext(async () => {});
+      const set = h.local.set;
+      let writes = 0;
+      h.local.set = async (key, value) => {
+        if (key === 'tyrekick.settings') await (++writes === 1 ? firstWrite.run() : secondWrite.run());
+        await set(key, value);
+      };
+      const earlier = h.background.onPopupMessage({ type: controls[0] });
+      await firstWrite.started;
+      const later = h.background.onPopupMessage({ type: controls[1] });
+      firstWrite.release();
+      await secondWrite.started;
+      await earlier;
+      const before = h.posted.length;
+      preparation.release();
+      await preparing;
+      await h.background.onPageMessage('doc', searchSync(nonce, cards(2, 47000000)));
+      const requests = [...h.requests];
+      const messages = h.posted.slice(before);
+      secondWrite.release();
+      await later;
+      expect(requests).toEqual([]);
+      expect(messages).toEqual([]);
+      expect(h.messagesFor('doc').filter((message) => message.type === 'status')).toEqual([
+        { type: 'status', active: true, generation: 0 },
+        { type: 'status', active: controls[1] === 'enable', generation: 0 },
+      ]);
+    });
+  }
+
   test('clear rejects late results and cache writes from before it', async () => {
     const h = await enabled();
     h.hold(true);
@@ -189,6 +390,105 @@ describe('pause and clear', () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(h.requests).toEqual([]);
   });
+});
+
+describe('document lifecycle', () => {
+  test('superseded in-flight warnings still cache independently without delivering to the old sync', async () => {
+    const h = await enabled();
+    h.hold(true);
+    const nonce = await connect(h, 'doc');
+    await h.background.onPageMessage('doc', searchSync(nonce, cards(3)));
+    await until(() => h.gates.length === 1);
+    await h.background.onPageMessage('doc', searchSync(nonce, cards(2, 47000000)));
+    await until(() => h.gates.length === 2);
+    h.gates.shift()?.release();
+    await until(() => storedEntries(h).length === 6);
+    expect(priceDeliveries(h.messagesFor('doc'))).toEqual([]);
+    expect(warningDeliveries(h.messagesFor('doc'))).toEqual([]);
+    h.hold(false);
+    h.gates.shift()?.release();
+    await until(() => h.inFlight === 0 && storedEntries(h).length === 10 && warningDeliveries(h.messagesFor('doc')).length === 2);
+    expect(warningDeliveries(h.messagesFor('doc')).map((delivery) => String(delivery.listingId))).toEqual(['47000000', '47000001']);
+    expect(storedEntries(h).filter((entry) => entry.branch === 'warning')).toHaveLength(5);
+  });
+
+  test('pause also rejects a completed result waiting on its settings read', async () => {
+    const h = await enabled();
+    h.hold(true);
+    const nonce = await connect(h, 'doc');
+    await h.background.onPageMessage('doc', searchSync(nonce, cards(1)));
+    await until(() => h.gates.length === 1);
+    const held = delayNext(h.store.settings);
+    h.store.settings = held.run;
+    h.gates.shift()?.release();
+    await held.started;
+    await h.background.onPopupMessage({ type: 'pause' });
+    const before = h.posted.length;
+    held.release();
+    await until(() => h.inFlight === 0);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(h.posted).toHaveLength(before);
+  });
+
+  test('a slower search cannot replace a newer sync', async () => {
+    const h = await enabled();
+    h.hold(true);
+    const nonce = await connect(h, 'doc');
+    const held = delayNext(crypto.subtle.digest.bind(crypto.subtle));
+    const digest = spyOn(crypto.subtle, 'digest').mockImplementation(held.run);
+    try {
+      const preparing = h.background.onPageMessage('doc', searchSync(nonce, cards(3)));
+      await held.started;
+      await h.background.onPageMessage('doc', searchSync(nonce, cards(2, 47000000)));
+      held.release();
+      await preparing;
+      expect(h.requests).toHaveLength(1);
+      expect(h.requests[0]?.price?.targetIds.map(String)).toEqual(['47000000', '47000001']);
+    } finally {
+      held.release();
+      digest.mockRestore();
+      h.hold(false);
+      for (const gate of h.gates.splice(0)) gate.release();
+      await until(() => h.inFlight === 0);
+    }
+  });
+
+  test('a slower detail cannot post or schedule after a newer search', async () => {
+    const h = await enabled();
+    const nonce = await connect(h, 'doc');
+    const held = delayNext(h.store.findOpening);
+    h.store.findOpening = held.run;
+    const preparing = h.background.onPageMessage('doc', {
+      type: 'sync', documentNonce: nonce,
+      page: { kind: 'detail', facts: facts({ id: '45000001' }), text: redact('Full service history.'), observedAt: NOW },
+    });
+    await held.started;
+    await h.background.onPageMessage('doc', searchSync(nonce, cards(2, 47000000)));
+    await until(() => h.inFlight === 0 && storedEntries(h).length === 4);
+    const before = h.posted.length;
+    held.release();
+    await preparing;
+    expect(h.requests).toHaveLength(1);
+    expect(h.posted).toHaveLength(before);
+  });
+
+  for (const reconnect of [false, true]) {
+    test(`a disconnected preparation cannot transmit${reconnect ? ' after reconnecting with the same id' : ''}`, async () => {
+      const h = await enabled();
+      const nonce = await connect(h, 'doc');
+      const held = delayNext(h.store.snapshot);
+      h.store.snapshot = held.run;
+      const preparing = h.background.onPageMessage('doc', searchSync(nonce, cards(3)));
+      await held.started;
+      h.background.disconnect('doc');
+      if (reconnect) await connect(h, 'doc');
+      const before = h.posted.length;
+      held.release();
+      await preparing;
+      expect(h.requests).toEqual([]);
+      expect(h.posted).toHaveLength(before);
+    });
+  }
 });
 
 describe('detail pages', () => {

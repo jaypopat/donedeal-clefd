@@ -22,6 +22,9 @@ import type { Store } from './store';
 /** A connected content-script document. Tab identity comes from the port sender, never the payload. */
 export type PageDoc = { id: DocId; tabId: number; openerTabId: number | null; documentNonce: DocumentNonce | null };
 
+type ConnectedDoc = PageDoc & { revision: number };
+type SyncOperation = { doc: ConnectedDoc; revision: number; epoch: number };
+
 export type BackgroundDeps = {
   store: Store;
   send: SchedulerDeps['send'];
@@ -30,25 +33,46 @@ export type BackgroundDeps = {
 };
 
 export function createBackground(deps: BackgroundDeps) {
-  const docs = new Map<DocId, PageDoc>();
+  const docs = new Map<DocId, ConnectedDoc>();
+  let controlEpoch = 0;
+  let controlPending = false;
 
-  function deliverPrice(docIds: readonly DocId[], delivery: PriceDelivery) {
-    for (const docId of docIds) {
-      const nonce = docs.get(docId)?.documentNonce;
-      if (nonce) deps.post(docId, { type: 'price', documentNonce: nonce, deliveries: [delivery] });
+  function isCurrent(operation: SyncOperation) {
+    return (
+      !controlPending && operation.epoch === controlEpoch && docs.get(operation.doc.id) === operation.doc
+      && operation.revision === operation.doc.revision
+    );
+  }
+
+  function recipients(docIds: readonly DocId[]): SyncOperation[] {
+    return docIds.flatMap((docId) => {
+      const doc = docs.get(docId);
+      return doc ? [{ doc, revision: doc.revision, epoch: controlEpoch }] : [];
+    });
+  }
+
+  function deliverPrice(operations: readonly SyncOperation[], delivery: PriceDelivery) {
+    for (const operation of operations) {
+      const { doc } = operation;
+      if (isCurrent(operation) && doc.documentNonce) {
+        deps.post(doc.id, { type: 'price', documentNonce: doc.documentNonce, deliveries: [delivery] });
+      }
     }
   }
 
-  function deliverWarning(docIds: readonly DocId[], delivery: WarningDelivery) {
-    for (const docId of docIds) {
-      const nonce = docs.get(docId)?.documentNonce;
-      if (nonce) deps.post(docId, { type: 'warning', documentNonce: nonce, deliveries: [delivery] });
+  function deliverWarning(operations: readonly SyncOperation[], delivery: WarningDelivery) {
+    for (const operation of operations) {
+      const { doc } = operation;
+      if (isCurrent(operation) && doc.documentNonce) {
+        deps.post(doc.id, { type: 'warning', documentNonce: doc.documentNonce, deliveries: [delivery] });
+      }
     }
   }
 
   const scheduler = createScheduler({
     send: deps.send,
     onPrice({ docIds, generation, context, job, result }) {
+      const operations = recipients(docIds);
       const assessment = {
         result,
         scope: 'this_search' as const,
@@ -71,7 +95,7 @@ export function createBackground(deps: BackgroundDeps) {
       }
       void currentGeneration().then((current) => {
         if (current !== generation) return;
-        deliverPrice(docIds, {
+        deliverPrice(operations, {
           listingId: job.listingId,
           targetFp: job.targetFp,
           context: { contextId: context.contextId, contextFp: context.contextFp },
@@ -80,6 +104,7 @@ export function createBackground(deps: BackgroundDeps) {
       });
     },
     onWarning({ docIds, generation, job, result }) {
+      const operations = recipients(docIds);
       const assessment = { result, coverage: job.target.coverage, observedAt: job.target.observedAt, reusedFromDetail: false };
       if (result.kind === 'checked') {
         void deps.store.put(
@@ -97,7 +122,7 @@ export function createBackground(deps: BackgroundDeps) {
       }
       void currentGeneration().then((current) => {
         if (current !== generation) return;
-        deliverWarning(docIds, { listingId: job.target.facts.listingId, contentFp: job.contentFp, assessment });
+        deliverWarning(operations, { listingId: job.target.facts.listingId, contentFp: job.contentFp, assessment });
       });
     },
   });
@@ -136,7 +161,8 @@ export function createBackground(deps: BackgroundDeps) {
     else input.jobs.push({ key, contentFp, target });
   }
 
-  async function syncSearch(doc: PageDoc, sync: SearchSync, settings: Settings, cache: Cache) {
+  async function syncSearch(operation: SyncOperation, sync: SearchSync, settings: Settings, cache: Cache) {
+    const { doc } = operation;
     const now = deps.now();
     const sample = sync.cards.slice(0, LIMITS.maxCandidates);
     const context: ContextSnapshot = {
@@ -176,6 +202,7 @@ export function createBackground(deps: BackgroundDeps) {
       await warningWork({ cache, target, deliveries: warningDeliveries, jobs: warningJobs });
     }
 
+    if (!isCurrent(operation)) return;
     if (doc.documentNonce) {
       if (priceDeliveries.length > 0) deps.post(doc.id, { type: 'price', documentNonce: doc.documentNonce, deliveries: priceDeliveries });
       if (warningDeliveries.length > 0) deps.post(doc.id, { type: 'warning', documentNonce: doc.documentNonce, deliveries: warningDeliveries });
@@ -196,9 +223,15 @@ export function createBackground(deps: BackgroundDeps) {
     return { kind: 'assessed', assessment: { ...entry.assessment, scope: 'originating_search' } };
   }
 
-  async function syncDetail(doc: PageDoc, sync: DetailSync, settings: Settings, cache: Cache) {
+  async function syncDetail(operation: SyncOperation, sync: DetailSync, settings: Settings, cache: Cache) {
+    const { doc } = operation;
     const price = await originatingPrice(doc, sync, cache);
     const targetFp = await targetFingerprint(sync.facts);
+    const deliveries: WarningDelivery[] = [];
+    const jobs: WarningJob[] = [];
+    const target: WarningTarget = { facts: sync.facts, coverage: 'detail', text: sync.text, observedAt: sync.observedAt };
+    await warningWork({ cache, target, deliveries, jobs });
+    if (!isCurrent(operation)) return;
     if (doc.documentNonce) {
       deps.post(doc.id, {
         type: 'price',
@@ -206,10 +239,6 @@ export function createBackground(deps: BackgroundDeps) {
         deliveries: [{ listingId: sync.facts.listingId, targetFp, context: null, price }],
       });
     }
-    const deliveries: WarningDelivery[] = [];
-    const jobs: WarningJob[] = [];
-    const target: WarningTarget = { facts: sync.facts, coverage: 'detail', text: sync.text, observedAt: sync.observedAt };
-    await warningWork({ cache, target, deliveries, jobs });
     if (doc.documentNonce && deliveries.length > 0) deps.post(doc.id, { type: 'warning', documentNonce: doc.documentNonce, deliveries });
     scheduler.replace(doc.id, { generation: settings.generation, price: null, warnings: jobs });
   }
@@ -226,8 +255,12 @@ export function createBackground(deps: BackgroundDeps) {
 
   return {
     async connect(doc: PageDoc) {
-      docs.set(doc.id, doc);
-      deps.post(doc.id, status(await deps.store.settings()));
+      const connected: ConnectedDoc = { ...doc, revision: 0 };
+      docs.set(doc.id, connected);
+      scheduler.drop(doc.id);
+      const epoch = controlEpoch;
+      const settings = await deps.store.settings();
+      if (docs.get(doc.id) === connected && epoch === controlEpoch && !controlPending) deps.post(doc.id, status(settings));
     },
 
     disconnect(docId: DocId) {
@@ -246,14 +279,18 @@ export function createBackground(deps: BackgroundDeps) {
         await recordOpening(doc, message.data.opening);
         return;
       }
+      const operation: SyncOperation = { doc, revision: ++doc.revision, epoch: controlEpoch };
+      scheduler.drop(docId);
+      if (controlPending) return;
       const { settings, cache } = await deps.store.snapshot();
+      if (!isCurrent(operation)) return;
       if (!isActive(settings)) {
         deps.post(docId, status(settings));
         return;
       }
       const page = message.data.page;
-      if (page.kind === 'search') await syncSearch(doc, page, settings, cache);
-      else await syncDetail(doc, page, settings, cache);
+      if (page.kind === 'search') await syncSearch(operation, page, settings, cache);
+      else await syncDetail(operation, page, settings, cache);
     },
 
     async onPopupMessage(raw: unknown): Promise<PopupState | null> {
@@ -262,21 +299,19 @@ export function createBackground(deps: BackgroundDeps) {
       switch (request.data.type) {
         case 'get-state':
           return popupState(await deps.store.settings());
-        case 'enable': {
-          const settings = await deps.store.updateSettings((current) => enable(current, deps.now()));
-          broadcast(settings);
-          return popupState(settings);
-        }
-        case 'pause': {
-          const settings = await deps.store.updateSettings(pause);
-          scheduler.cancelAll();
-          broadcast(settings);
-          return popupState(settings);
-        }
+        case 'enable':
+        case 'pause':
         case 'clear-data': {
+          const epoch = ++controlEpoch;
+          controlPending = true;
           scheduler.cancelAll();
-          const settings = await deps.store.clear();
-          broadcast(settings);
+          const settings = await (request.data.type === 'clear-data'
+            ? deps.store.clear()
+            : deps.store.updateSettings(request.data.type === 'pause' ? pause : (current) => enable(current, deps.now())));
+          if (epoch === controlEpoch) {
+            controlPending = false;
+            broadcast(settings);
+          }
           return popupState(settings);
         }
         default: {
