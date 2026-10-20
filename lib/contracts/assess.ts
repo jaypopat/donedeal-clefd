@@ -132,27 +132,33 @@ export const ComparableSchema = z.strictObject({
 });
 export type Comparable = z.infer<typeof ComparableSchema>;
 
-export const PriceResultSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('ready'),
-    label: PriceLabelSchema,
-    targetEur: Eur,
-    medianEur: Eur,
-    lowerQuartileEur: Eur,
-    upperQuartileEur: Eur,
-    deltaPercent: z.number().min(-100).max(10_000),
-    matchCount: z.int().min(1),
-    unknownFactCount: z.int().min(0),
-    comparables: z.array(ComparableSchema).max(LIMITS.maxComparables),
-  }),
-  z.strictObject({
-    kind: z.literal('insufficient'),
-    reason: InsufficientReasonSchema,
-    matchCount: z.int().min(0),
-    unknownFactCount: z.int().min(0),
-  }),
-  z.strictObject({ kind: z.literal('unavailable'), error: BranchErrorSchema }),
-]);
+export const PriceReadySchema = z.strictObject({
+  kind: z.literal('ready'),
+  label: PriceLabelSchema,
+  targetEur: Eur,
+  medianEur: Eur,
+  lowerQuartileEur: Eur,
+  upperQuartileEur: Eur,
+  deltaPercent: z.number().min(-100).max(10_000),
+  matchCount: z.int().min(1),
+  unknownFactCount: z.int().min(0),
+  comparables: z.array(ComparableSchema).max(LIMITS.maxComparables),
+});
+
+export const PriceInsufficientSchema = z.strictObject({
+  kind: z.literal('insufficient'),
+  reason: InsufficientReasonSchema,
+  matchCount: z.int().min(0),
+  unknownFactCount: z.int().min(0),
+});
+
+const BranchUnavailableSchema = z.strictObject({ kind: z.literal('unavailable'), error: BranchErrorSchema });
+
+/** Results worth caching. Service failures never are. */
+export const SettledPriceResultSchema = z.discriminatedUnion('kind', [PriceReadySchema, PriceInsufficientSchema]);
+export type SettledPriceResult = z.infer<typeof SettledPriceResultSchema>;
+
+export const PriceResultSchema = z.discriminatedUnion('kind', [PriceReadySchema, PriceInsufficientSchema, BranchUnavailableSchema]);
 export type PriceResult = z.infer<typeof PriceResultSchema>;
 
 export const ReasonCodeSchema = z.enum([
@@ -191,13 +197,13 @@ export const FindingSchema = z.strictObject({
 });
 export type Finding = z.infer<typeof FindingSchema>;
 
-export const WarningResultSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('checked'),
-    findings: z.array(FindingSchema).max(LIMITS.maxFindings),
-  }),
-  z.strictObject({ kind: z.literal('unavailable'), error: BranchErrorSchema }),
-]);
+export const WarningCheckedSchema = z.strictObject({
+  kind: z.literal('checked'),
+  findings: z.array(FindingSchema).max(LIMITS.maxFindings),
+});
+export type WarningChecked = z.infer<typeof WarningCheckedSchema>;
+
+export const WarningResultSchema = z.discriminatedUnion('kind', [WarningCheckedSchema, BranchUnavailableSchema]);
 export type WarningResult = z.infer<typeof WarningResultSchema>;
 
 export const PriceTargetResultSchema = z.strictObject({
