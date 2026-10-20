@@ -10,6 +10,10 @@
     "zip": "wxt zip",
     "compile": "tsc --noEmit && tsc --noEmit -p server",
     "test": "bun test",
+    "worker:dev": "bun scripts/dev-worker.ts",
+    "worker:smoke": "bun scripts/smoke-worker.ts",
+    "worker:check": "WRANGLER_SEND_METRICS=false wrangler deploy --dry-run --config server/wrangler.jsonc --outdir .output/worker",
+    "check": "bun run compile && bun test && bun run build && bun run worker:check",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
@@ -25,6 +29,7 @@
     "happy-dom": "^21.0.3",
     "typescript": "^5.9.3",
     "web-ext": "^10.5.0",
+    "wrangler": "^4.151.3",
     "wxt": "^0.21.3"
   }
 }

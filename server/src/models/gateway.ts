@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import type { BranchError } from '../../../lib/contracts/assess';
 
 export type ModelName = 'clairic' | 'clef';
@@ -34,32 +33,5 @@ export function bindingGateway(ai: AiBinding): ModelGateway {
       if (error instanceof ModelFailure) throw error;
       throw new ModelFailure('model_error');
     }
-  };
-}
-
-const RestEnvelopeSchema = z.object({ success: z.literal(true), result: z.unknown() });
-
-/** Local-development gateway using a Cloudflare API token held only in the Worker's environment. */
-export function restGateway(config: { accountId: string; token: string; fetch?: typeof fetch }): ModelGateway {
-  const send = config.fetch ?? fetch;
-  return async ({ model, body, signal }) => {
-    let response: Response;
-    try {
-      response = await send(
-        `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(config.accountId)}/ai/run/@cf/cloudflare/${model}`,
-        {
-          method: 'POST',
-          headers: { authorization: `Bearer ${config.token}`, 'content-type': 'application/json' },
-          body: JSON.stringify({ model, ...body }),
-          signal,
-        },
-      );
-    } catch {
-      throw new ModelFailure(signal.aborted ? 'timeout' : 'model_error');
-    }
-    if (!response.ok) throw new ModelFailure('model_error');
-    const envelope = RestEnvelopeSchema.safeParse(await response.json().catch(() => null));
-    if (!envelope.success) throw new ModelFailure('model_invalid_output');
-    return envelope.data.result;
   };
 }
