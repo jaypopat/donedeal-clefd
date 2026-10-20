@@ -5,7 +5,7 @@ import { LIMITS } from '../contracts/versions';
 import type { Opening } from '../messages';
 import { OpeningSchema } from '../messages';
 import type { Cache, CacheEntry } from './cache';
-import { CacheSchema, emptyCache, withEntry } from './cache';
+import { CacheSchema, emptyCache, pruneCache, withEntry } from './cache';
 import type { Settings } from './settings';
 import { DEFAULT_SETTINGS, SettingsSchema, isActive } from './settings';
 
@@ -66,7 +66,17 @@ export function createStore(deps: { local: StorageArea; session: StorageArea; no
 
     async snapshot(): Promise<{ settings: Settings; cache: Cache }> {
       const current = await settings();
-      return { settings: current, cache: await cache(current.generation) };
+      const stored = await cache(current.generation);
+      if (pruneCache(stored, deps.now()).entries.length === stored.entries.length) {
+        return { settings: current, cache: stored };
+      }
+      return serial(async () => {
+        const latest = await settings();
+        const stored = await cache(latest.generation);
+        const fresh = pruneCache(stored, deps.now());
+        if (fresh.entries.length !== stored.entries.length) await deps.local.set(CACHE_KEY, fresh);
+        return { settings: latest, cache: fresh };
+      });
     },
 
     updateSettings(update: (current: Settings) => Settings): Promise<Settings> {

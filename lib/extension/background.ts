@@ -19,6 +19,21 @@ import type { PopupState, Settings } from './settings';
 import { enable, isActive, pause } from './settings';
 import type { Store } from './store';
 
+type CleanupAlarms = {
+  get(name: string): Promise<unknown>;
+  create(name: string, info: { periodInMinutes: number }): Promise<void>;
+  onAlarm: { addListener(listener: (alarm: { name: string }) => void): void };
+};
+
+export async function startCacheCleanup(store: Pick<Store, 'snapshot'>, alarms: CleanupAlarms) {
+  const name = 'tyrekick-cache-expiry';
+  alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === name) void store.snapshot();
+  });
+  await store.snapshot();
+  if (!await alarms.get(name)) await alarms.create(name, { periodInMinutes: 1 });
+}
+
 /** A connected content-script document. Tab identity comes from the port sender, never the payload. */
 export type PageDoc = { id: DocId; tabId: number; openerTabId: number | null; documentNonce: DocumentNonce | null };
 
@@ -264,7 +279,7 @@ export function createBackground(deps: BackgroundDeps) {
       docs.set(doc.id, connected);
       scheduler.drop(doc.id);
       const epoch = controlEpoch;
-      const settings = await deps.store.settings();
+      const { settings } = await deps.store.snapshot();
       if (docs.get(doc.id) === connected && epoch === controlEpoch && !controlPending) deps.post(doc.id, status(settings));
     },
 

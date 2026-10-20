@@ -30,7 +30,7 @@ export default function App() {
       <h2 id="processing-title">Before you enable</h2>
       <p>Tyrekick sends vehicle facts and redacted listing titles and descriptions to its Worker and Cloudflare Workers AI for processing.</p>
       <p>It reads car results and ads you open. It does not fetch other ads automatically. Contact details, cookies, and seller profiles are not collected.</p>
-      <p>Assessments stay in this browser for up to 30 minutes. No listing database is kept by the Worker.</p>
+      <p>Assessments expire after 30 minutes. Expired data is removed when Chrome next runs cleanup. No listing database is kept by the Worker.</p>
     </section>
     {state && <>
       <p className="status"><span className={`dot ${state.access}`} />{state.access === 'enabled' ? 'Enabled on DoneDeal Cars' : state.access === 'paused' ? 'Analysis paused' : 'Not enabled'}</p>

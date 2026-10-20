@@ -1,5 +1,5 @@
 import { browser, type Browser } from 'wxt/browser';
-import { createBackground } from '../lib/extension/background';
+import { createBackground, startCacheCleanup } from '../lib/extension/background';
 import { createAssessClient } from '../lib/extension/client';
 import { API_BASE } from '../lib/extension/config';
 import type { StorageArea } from '../lib/extension/store';
@@ -17,8 +17,11 @@ function area(storage: Browser.storage.StorageArea): StorageArea {
 
 export default defineBackground(() => {
   const ports = new Map<string, Browser.runtime.Port>();
+  const store = createStore({ local: area(browser.storage.local), session: area(browser.storage.session), now: Date.now });
+  void startCacheCleanup(store, browser.alarms);
+  browser.runtime.onStartup.addListener(() => void store.snapshot());
   const background = createBackground({
-    store: createStore({ local: area(browser.storage.local), session: area(browser.storage.session), now: Date.now }),
+    store,
     send: createAssessClient({ baseUrl: API_BASE }),
     post(docId, message: BackgroundMessage) {
       try {

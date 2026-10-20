@@ -4,8 +4,10 @@ import { LIMITS } from '../contracts/versions';
 import { redact } from '../privacy/redact';
 import type { BackgroundMessage, PriceDelivery, WarningDelivery } from '../messages';
 import { facts } from '../../tests/support/listings';
-import { NOW, cards, harness, newDocumentNonce, searchSync, until } from '../../tests/support/extension';
+import { NOW, cards, harness, memoryArea, newDocumentNonce, searchSync, until } from '../../tests/support/extension';
 import { CacheSchema } from './cache';
+import { startCacheCleanup } from './background';
+import { createStore } from './store';
 import { classifyPage } from '../donedeal/page';
 import { acceptPrice, newSearch, reconcileSearch, type PageModel } from '../page/model';
 
@@ -129,6 +131,60 @@ describe('batching', () => {
 });
 
 describe('caching', () => {
+  test('startup and scheduled cleanup remove expired storage while paused without requests', async () => {
+    const h = await enabled();
+    const nonce = await connect(h, 'doc');
+    await h.background.onPageMessage('doc', searchSync(nonce, cards(3)));
+    await until(() => storedEntries(h).length === 6);
+    await h.background.onPopupMessage({ type: 'pause' });
+    const expired = structuredClone(h.local.data.get('tyrekick.assessments'));
+    let listener = (_alarm: { name: string }) => {};
+    const scheduled: { name: string; periodInMinutes: number }[] = [];
+    const alarms = {
+      async get(name: string) { return scheduled.find((alarm) => alarm.name === name); },
+      async create(name: string, info: { periodInMinutes: number }) { scheduled.push({ name, ...info }); },
+      onAlarm: { addListener(callback: typeof listener) { listener = callback; } },
+    };
+    await startCacheCleanup(h.store, alarms);
+    expect(scheduled).toEqual([{ name: 'tyrekick-cache-expiry', periodInMinutes: 1 }]);
+    expect(storedEntries(h)).toHaveLength(6);
+    h.clock.now += LIMITS.assessmentTtlMs;
+    listener({ name: 'unrelated-alarm' });
+    expect(storedEntries(h)).toHaveLength(6);
+    listener({ name: 'tyrekick-cache-expiry' });
+    await until(() => storedEntries(h).length === 0);
+    h.local.data.set('tyrekick.assessments', expired);
+    const restarted = createStore({ local: h.local, session: memoryArea(), now: () => h.clock.now });
+    await startCacheCleanup(restarted, alarms);
+    expect(storedEntries(h)).toEqual([]);
+    expect(scheduled).toHaveLength(1);
+    expect(h.requests).toHaveLength(1);
+  });
+
+  for (const action of ['clear', 'put'] as const) {
+    test(`expiry cleanup preserves a concurrent ${action}`, async () => {
+      const h = await enabled();
+      const nonce = await connect(h, 'doc');
+      await h.background.onPageMessage('doc', searchSync(nonce, cards(1)));
+      await until(() => storedEntries(h).length === 2);
+      const entry = storedEntries(h)[0];
+      if (!entry) throw new Error('expected cached entry');
+      h.clock.now += LIMITS.assessmentTtlMs;
+      const held = delayNext(h.local.get);
+      const get = h.local.get;
+      h.local.get = (key) => key === 'tyrekick.assessments' ? held.run(key) : get(key);
+      const pruning = h.store.snapshot();
+      await held.started;
+      if (action === 'clear') await h.store.clear();
+      else expect(await h.store.put({ ...entry, storedAt: h.clock.now }, 0)).toBe(true);
+      held.release();
+      const snapshot = await pruning;
+      expect(snapshot.settings.generation).toBe(action === 'clear' ? 1 : 0);
+      expect(snapshot.cache.entries).toEqual(action === 'clear' ? [] : [{ ...entry, storedAt: h.clock.now }]);
+      expect(storedEntries(h)).toEqual(snapshot.cache.entries);
+    });
+  }
+
   test('status reads persist expiry while paused at the TTL boundary', async () => {
     const h = await enabled();
     const nonce = await connect(h, 'doc');

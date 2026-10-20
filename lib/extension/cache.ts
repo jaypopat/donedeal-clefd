@@ -63,6 +63,10 @@ function isFresh(entry: CacheEntry, now: number): boolean {
   return now - entry.storedAt < LIMITS.assessmentTtlMs && entry.storedAt <= now;
 }
 
+export function pruneCache(cache: Cache, now: number): Cache {
+  return { ...cache, entries: cache.entries.filter((entry) => isFresh(entry, now)) };
+}
+
 /** Drops expired entries and the oldest beyond the combined bound. */
 export function withEntry(cache: Cache, entry: CacheEntry, now: number): Cache {
   const kept = cache.entries.filter((existing) => existing.key !== entry.key && isFresh(existing, now));

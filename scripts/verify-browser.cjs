@@ -14,7 +14,7 @@ assert.equal(api.hostname, '127.0.0.1', 'Fixture verification uses IPv4 loopback
 assert.equal(api.protocol, 'http:');
 assert.ok(readFileSync(join(extension, 'background.js'), 'utf8').includes(api.origin), `Build first with WXT_API_BASE=${api.origin}`);
 const manifest = JSON.parse(readFileSync(join(extension, 'manifest.json'), 'utf8'));
-assert.deepEqual(manifest.permissions, ['storage']);
+assert.deepEqual(manifest.permissions, ['storage', 'alarms']);
 assert.deepEqual(manifest.host_permissions, ['https://www.donedeal.ie/*', 'http://127.0.0.1/*']);
 const profile = mkdtempSync(join(tmpdir(), 'tyrekick-browser-'));
 const prices = [10000, 14000, 14500, 15000, 15500, 16000, 16500];
@@ -102,6 +102,10 @@ async function main() {
   await page.keyboard.press('Escape');
   await dialog.waitFor({ state: 'hidden' });
   await page.waitForFunction((element) => element.getRootNode().activeElement === element, await trigger.elementHandle());
+  await trigger.click();
+  await dialog.waitFor();
+  await trigger.click();
+  await dialog.waitFor({ state: 'hidden' });
   check('cash beside finance, attributed independent badges, keyboard explanation and focus return');
   await page.evaluate(({ markup, extra }) => {
     const data = JSON.parse(document.querySelector('#__NEXT_DATA__').textContent);
