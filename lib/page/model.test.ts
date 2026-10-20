@@ -4,6 +4,7 @@ import { contextFingerprint } from '../contracts/fingerprint';
 import { LIMITS } from '../contracts/versions';
 import { redact } from '../privacy/redact';
 import type { PriceDelivery, WarningDelivery } from '../messages';
+import { MAX_PAGE_CARDS, SearchSyncSchema } from '../messages';
 import { classifyPage } from '../donedeal/page';
 import { facts } from '../../tests/support/listings';
 import type { Observed, PageModel, SearchModel } from './model';
@@ -139,6 +140,30 @@ describe('search snapshot', () => {
     if (!warned || warned.kind !== 'search') throw new Error('not accepted');
     const reset = resetBranches(warned);
     expect(reset.kind === 'search' && [...reset.bindings.values()].every((binding) => binding.warning.kind === 'checking')).toBe(true);
+  });
+
+  test('bounds observations, order, and serialized visible IDs to MAX_PAGE_CARDS while keeping first 100 sample', async () => {
+    const total = 350;
+    const cards = observed(total);
+    const { model } = await reconcileSearch(newSearch(searchKey(), NOW), cards, NOW);
+
+    expect(model.order).toHaveLength(MAX_PAGE_CARDS);
+    expect(model.bindings.size).toBe(MAX_PAGE_CARDS);
+    expect(priceKinds(model).filter((kind) => kind === 'checking')).toHaveLength(LIMITS.maxCandidates);
+    expect(priceKinds(model).filter((kind) => kind === 'outside_sample')).toHaveLength(MAX_PAGE_CARDS - LIMITS.maxCandidates);
+
+    const visibleSet = new Set(cards.map((c) => c.facts.listingId));
+    expect(visibleSet.size).toBe(total);
+
+    const sync = syncFor(model, visibleSet);
+    expect(sync).not.toBeNull();
+    if (!sync || sync.kind !== 'search') throw new Error('expected search sync');
+
+    expect(sync.cards).toHaveLength(MAX_PAGE_CARDS);
+    expect(sync.visible).toHaveLength(MAX_PAGE_CARDS);
+
+    const parsed = SearchSyncSchema.safeParse(sync);
+    expect(parsed.success).toBe(true);
   });
 });
 

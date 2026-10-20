@@ -7,6 +7,7 @@ import type { RedactedText } from '../privacy/redact';
 import type { CardView, PriceView, WarningView } from '../display/views';
 import type { SearchKey } from '../donedeal/page';
 import type { DetailSync, Opening, PriceDelivery, SearchSync, WarningDelivery } from '../messages';
+import { MAX_PAGE_CARDS } from '../messages';
 
 export type Binding = {
   facts: ListingFacts;
@@ -64,11 +65,12 @@ export async function reconcileSearch(
   observed: readonly Observed[],
   now: number,
 ): Promise<{ model: SearchModel; changed: boolean }> {
-  const present = new Map(observed.map((card) => [card.facts.listingId, card]));
+  const boundedObserved = observed.slice(0, MAX_PAGE_CARDS);
+  const present = new Map(boundedObserved.map((card) => [card.facts.listingId, card]));
   const order = [
     ...model.order.filter((id) => present.has(id)),
-    ...observed.map((card) => card.facts.listingId).filter((id) => !model.bindings.has(id)),
-  ];
+    ...boundedObserved.map((card) => card.facts.listingId).filter((id) => !model.bindings.has(id)),
+  ].slice(0, MAX_PAGE_CARDS);
   const sample = new Set(order.slice(0, LIMITS.maxCandidates));
   const bindings = new Map<ListingId, Binding>();
   let changed = order.length !== model.order.length;
@@ -139,12 +141,18 @@ export function syncFor(model: PageModel, visible: ReadonlySet<ListingId>): Sear
   if (model.kind === 'detail') {
     return { kind: 'detail', facts: model.binding.facts, text: model.binding.text, observedAt: model.observedAt };
   }
-  const cards = model.order.flatMap((id) => {
+  const cards = model.order.slice(0, MAX_PAGE_CARDS).flatMap((id) => {
     const binding = model.bindings.get(id);
     return binding ? [{ facts: binding.facts, text: binding.text }] : [];
   });
   if (cards.length === 0) return null;
-  return { kind: 'search', contextId: model.contextId, observedAt: model.observedAt, cards, visible: [...visible] };
+  return {
+    kind: 'search',
+    contextId: model.contextId,
+    observedAt: model.observedAt,
+    cards,
+    visible: [...visible].slice(0, MAX_PAGE_CARDS),
+  };
 }
 
 export function openingFor(model: PageModel, listingId: ListingId): Opening | null {

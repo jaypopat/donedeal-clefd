@@ -13,14 +13,14 @@ import { CoverageSchema, ListingFactsSchema, ListingTextSchema } from './contrac
 import { LIMITS } from './contracts/versions';
 
 export const PAGE_PORT = 'tyrekick-page';
-const MAX_CARDS = 300;
+export const MAX_PAGE_CARDS = 300;
 
 export const PriceAssessmentSchema = z.strictObject({
   result: PriceResultSchema,
   scope: z.enum(['this_search', 'originating_search']),
   observedAt: EpochMsSchema,
   sampleSize: z.int().min(1).max(LIMITS.maxCandidates),
-  loadedCount: z.int().min(1).max(MAX_CARDS),
+  loadedCount: z.int().min(1).max(MAX_PAGE_CARDS),
 });
 export type PriceAssessment = z.infer<typeof PriceAssessmentSchema>;
 
@@ -41,8 +41,8 @@ export const SearchSyncSchema = z
     kind: z.literal('search'),
     contextId: ContextIdSchema,
     observedAt: EpochMsSchema,
-    cards: z.array(CardSyncSchema).min(1).max(MAX_CARDS),
-    visible: z.array(ListingIdSchema).max(MAX_CARDS),
+    cards: z.array(CardSyncSchema).min(1).max(MAX_PAGE_CARDS),
+    visible: z.array(ListingIdSchema).max(MAX_PAGE_CARDS),
   })
   .refine((sync) => new Set(sync.cards.map((card) => card.facts.listingId)).size === sync.cards.length, {
     message: 'duplicate cards',
@@ -98,12 +98,12 @@ export const BackgroundMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('price'),
     documentNonce: DocumentNonceSchema,
-    deliveries: z.array(PriceDeliverySchema).max(MAX_CARDS),
+    deliveries: z.array(PriceDeliverySchema).max(MAX_PAGE_CARDS),
   }),
   z.strictObject({
     type: z.literal('warning'),
     documentNonce: DocumentNonceSchema,
-    deliveries: z.array(WarningDeliverySchema).max(MAX_CARDS),
+    deliveries: z.array(WarningDeliverySchema).max(MAX_PAGE_CARDS),
   }),
 ]);
 export type BackgroundMessage = z.infer<typeof BackgroundMessageSchema>;
