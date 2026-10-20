@@ -1,2 +1,4 @@
 ts	phase	decision	why	evidence	result
 2026-10-20T17:29:32Z	frame	Build the v0.2 Chrome prototype with one Worker and local caching	The product spec is the source of truth; live browser and model access already work	docs/product-spec.md; /tmp/tyrekick-preflight/browser-headed.cjs	baseline compile/build passed; model HTTP 200
+2026-10-20T17:31:15Z	design	Compare two independent architecture sketches	Check lifecycle and privacy boundaries before implementation	/tmp/tyrekick-build-context/design-0.md; /tmp/tyrekick-build-context/design-1.md	Claude Fable judge rate-limited; fresh Codex Astra judge dispatched
+2026-10-20T17:33:08Z	design	Use page state plus background storage with explicit identity and clear generations	Independent judge preferred the safer lifecycle while retaining the small local-only Worker	docs/implementation-contract.md	design approved for implementation
