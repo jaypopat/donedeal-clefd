@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tyrekick architecture</title>
+  <style>
+    body { margin: 0; color: var(--foreground); font-family: var(--font-sans, sans-serif); }
+    * { box-sizing: border-box; }
+    #tyrekick-architecture { width: 100%; padding: 4px 0 12px; }
+    h2, h3, p { margin: 0; font-size: inherit; line-height: 1.5; }
+    h2, h3, strong { font-weight: 500; }
+    .subtle { color: var(--muted-foreground); }
+    .heading { margin-bottom: 20px; }
+    .lane { display: grid; grid-template-columns: 118px minmax(0,1fr); gap: 20px; }
+    .lane-label { color: var(--muted-foreground); padding-top: 2px; }
+    .flow { min-width: 0; }
+    .step { padding: 0 0 12px; }
+    .arrow { color: var(--muted-foreground); padding: 0 0 10px; }
+    .separator { border: 0; border-top: 1px solid var(--border); margin: 10px 0 20px; }
+    .branches { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 24px; margin: 0 0 12px; }
+    .branch { min-width: 0; }
+    .branch h3 { margin-bottom: 6px; }
+    .branch p + p { margin-top: 8px; }
+    .output { padding: 0 0 4px; }
+    .output p { margin-top: 6px; }
+    @media (max-width: 500px) {
+      .lane { grid-template-columns: 1fr; gap: 10px; }
+      .lane-label { font-weight: 500; }
+      .branches { grid-template-columns: 1fr; gap: 18px; }
+      .heading { margin-bottom: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main id="tyrekick-architecture" aria-label="Proposed Tyrekick architecture from a DoneDeal listing to browser badges">
+    <div class="heading">
+      <h2>Tyrekick · prototype architecture v0.2</h2>
+      <p class="subtle">WXT + React → one Cloudflare Worker → Workers AI</p>
+    </div>
+    <section class="lane" aria-label="Browser layer">
+      <p class="lane-label">Buyer’s browser</p>
+      <div class="flow">
+        <div class="step">
+          <h3>DoneDeal page → content script</h3>
+          <p class="subtle">Read loaded search cards. Add description when the buyer opens an ad.</p>
+        </div>
+        <div class="arrow" aria-hidden="true">↓</div>
+        <div class="step">
+          <h3>Extension background</h3>
+          <p class="subtle">Local browser cache · search context · batch missing work</p>
+        </div>
+      </div>
+    </section>
+    <hr class="separator">
+    <section class="lane" aria-label="Backend layer">
+      <p class="lane-label">Tyrekick backend</p>
+      <div class="flow">
+        <div class="step">
+          <h3>Worker API</h3>
+          <p class="subtle">Validate supplied cards → normalise → assess requested branches</p>
+        </div>
+        <div class="arrow" aria-hidden="true">↓</div>
+        <div class="branches">
+          <section class="branch" aria-label="Price assessment branch">
+            <h3>Price assessment</h3>
+            <p>Loaded search results<br>↓<br>Match similar cars + compare prices<br>↓<br>Price label or insufficient data</p>
+            <p class="subtle">Compared with this search.<br>Recalculate when the sample changes.</p>
+          </section>
+          <section class="branch" aria-label="Warning assessment branch">
+            <h3>Warning assessment</h3>
+            <p>Clairic extracts evidence<br>↓<br>Clef checks defined questions<br>↓<br>Policy validates findings</p>
+            <p class="subtle">Use models when text requires it.<br>Card-only checks remain limited.</p>
+          </section>
+        </div>
+        <div class="arrow" aria-hidden="true">↓</div>
+        <div class="step">
+          <h3>Return independent price and warning results</h3>
+          <p class="subtle">Include evidence, comparison scope, coverage, and expiry.</p>
+        </div>
+      </div>
+    </section>
+    <hr class="separator">
+    <section class="lane" aria-label="Browser presentation layer">
+      <p class="lane-label">Back on the card</p>
+      <div class="output">
+        <h3>Cache locally → show badges</h3>
+        <p class="subtle">Click for the reason. No D1, KV, or collected market dataset initially.</p>
+      </div>
+    </section>
+  </main>
+  <script>
+    const root = document.getElementById('tyrekick-architecture');
+    requestAnimationFrame(() => {
+      console.log(JSON.stringify({
+        check: 'layout',
+        width: document.documentElement.clientWidth,
+        contentWidth: document.documentElement.scrollWidth,
+        overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        branches: root.querySelectorAll('.branch').length
+      }));
+    });
+  </script>
+</body>
+</html>
