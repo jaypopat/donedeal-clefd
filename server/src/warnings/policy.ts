@@ -6,7 +6,6 @@ import { LIMITS } from '../../../lib/contracts/versions';
 import type { Claim, ClaimName } from '../models/clairic';
 import type { Judgements, QuestionName } from '../models/clef';
 
-/** Provisional, versioned with WARNING_POLICY_VERSION. The yes threshold is not a calibrated fraud probability. */
 export const WARNING_POLICY = {
   judgeYesAt: 0.5,
   mileageToleranceKm: 5000,
@@ -50,7 +49,6 @@ function said(input: PolicyInput, question: QuestionName): boolean {
   return (input.judgements[question] ?? 0) >= WARNING_POLICY.judgeYesAt;
 }
 
-/** Odometer reading in a phrase such as "120,000 km" or "40K MILES". */
 export function claimedKm(excerpt: string): number | null {
   const match = /(\d+(?:[.,]\d+)*)\s*(k|thousand)?\s*(kms?|kilomet(?:er|re)s?|mi|miles?|mls)\b/i.exec(excerpt);
   if (!match?.[1] || !match[3]) return null;
@@ -182,7 +180,6 @@ export function questionsFor(input: Pick<PolicyInput, 'facts' | 'claims'>): Ques
   return questions;
 }
 
-/** Maps verified claims and judgements to displayable findings. Each needs real source evidence. */
 export function findingsFrom(input: PolicyInput): Finding[] {
   return RULES.flatMap((rule) => rule(input) ?? [])
     .sort(bySeverity)

@@ -2,7 +2,6 @@ import type { ReasonCode } from '../contracts/assess';
 
 type Template = { title: string; nextStep: string };
 
-/** Fixed explanation text per reason. Model output never supplies wording, only evidence. */
 export const REASON_TEMPLATES = {
   payment_before_viewing: {
     title: 'Payment requested before viewing',

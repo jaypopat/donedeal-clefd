@@ -53,7 +53,6 @@ export function parseEngineLitres(text: string): number | null {
   return match?.[1] ? Number(match[1]) : null;
 }
 
-/** Card meta such as "1.5 Petrol Hybrid" or "Electric". */
 export function parseEngineAndFuel(text: string): { engineLitres: number | null; fuel: Fuel } | null {
   const match = /^(?:(\d{1,2}\.\d)\s+)?(.+)$/.exec(cleanText(text));
   const fuel = match?.[2] ? parseFuel(match[2]) : null;
@@ -66,7 +65,6 @@ export function parseEuroText(text: string): number | null {
   return match?.[1] ? Number(match[1].replaceAll(',', '')) : null;
 }
 
-/** The headline price element. A separately displayed monthly offer is not read here. */
 export function parseHeadlinePrice(text: string | null): AskingPrice {
   const cleaned = cleanText(text);
   if (cleaned === '') return { kind: 'missing' };

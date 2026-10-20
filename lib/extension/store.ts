@@ -9,7 +9,6 @@ import { CacheSchema, emptyCache, pruneCache, withEntry } from './cache';
 import type { Settings } from './settings';
 import { DEFAULT_SETTINGS, SettingsSchema, isActive } from './settings';
 
-/** The subset of `chrome.storage` areas the store needs. */
 export type StorageArea = {
   get(key: string): Promise<unknown>;
   set(key: string, value: unknown): Promise<void>;
@@ -32,10 +31,6 @@ type Openings = z.infer<typeof OpeningsSchema>;
 
 export type Store = ReturnType<typeof createStore>;
 
-/**
- * The background's only storage writer. Writes run one at a time, and each write
- * that carries a generation is dropped once a clear has moved past it.
- */
 export function createStore(deps: { local: StorageArea; session: StorageArea; now: () => number }) {
   let tail: Promise<unknown> = Promise.resolve();
   function serial<T>(operation: () => Promise<T>): Promise<T> {
@@ -120,7 +115,6 @@ export function createStore(deps: { local: StorageArea; session: StorageArea; no
       });
     },
 
-    /** Only an explicit opening from one of these tabs counts, never the latest search elsewhere. */
     async findOpening(listingId: ListingId, tabIds: readonly number[]): Promise<RecordedOpening | null> {
       const current = await settings();
       const { entries } = await openings(current.generation);

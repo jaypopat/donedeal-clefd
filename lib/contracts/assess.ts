@@ -154,7 +154,6 @@ export const PriceInsufficientSchema = z.strictObject({
 
 const BranchUnavailableSchema = z.strictObject({ kind: z.literal('unavailable'), error: BranchErrorSchema });
 
-/** Results worth caching. Service failures never are. */
 export const SettledPriceResultSchema = z.discriminatedUnion('kind', [PriceReadySchema, PriceInsufficientSchema]);
 export type SettledPriceResult = z.infer<typeof SettledPriceResultSchema>;
 

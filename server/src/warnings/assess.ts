@@ -15,7 +15,6 @@ const CARD_CUES = [
 ];
 const PRIVATE_TRADE_CUE = /\b(finance|trade[- ]?ins?|warranty|dealer|stock|showroom|garage)\b/i;
 
-/** Card titles rarely say anything checkable, so they skip model work unless a cue appears. */
 function worthModelCheck(target: WarningTarget): boolean {
   if (target.text.trim() === '') return false;
   if (target.coverage === 'detail') return true;

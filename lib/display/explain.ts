@@ -96,7 +96,6 @@ function warningBadge(view: WarningView): Badge | null {
   return coverage === 'card' ? { text: 'Limited info', tone: 'muted' } : null;
 }
 
-/** A shared Checking or unavailable state shows once. */
 export function badgesFor(view: CardView): Badge[] {
   const price = priceBadge(view.price);
   const warning = warningBadge(view.warning);

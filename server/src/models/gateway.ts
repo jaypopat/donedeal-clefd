@@ -13,7 +13,6 @@ export class ModelFailure extends Error {
   }
 }
 
-/** The subset of the Workers AI binding this Worker uses. */
 export type AiBinding = { run(model: string, inputs: Record<string, unknown>): Promise<unknown> };
 
 function abortable<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {

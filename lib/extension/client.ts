@@ -15,7 +15,6 @@ function evidenceMatches(result: WarningTargetResult, text: string): boolean {
   );
 }
 
-/** Keeps only results whose identity and evidence match what was sent. */
 async function filterSubmittedResults(request: AssessRequest, response: AssessResponse): Promise<AssessResponse | null> {
   if (response.requestId !== request.requestId) return null;
   let price: AssessResponse['price'] = null;

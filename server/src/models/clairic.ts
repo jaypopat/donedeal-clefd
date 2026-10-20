@@ -5,7 +5,6 @@ import type { RedactedText } from '../../../lib/privacy/redact';
 import type { Meter, ModelGateway } from './gateway';
 import { ModelFailure } from './gateway';
 
-/** Fixed extraction schema. Listing text is the state only; it cannot change these instructions. */
 export const CLAIM_FIELDS = {
   mileage_statement: 'Exact phrase stating the odometer mileage with its unit, such as "68,000 km" or "40k miles"',
   year_statement: 'Exact phrase stating the year the car was made or first registered',

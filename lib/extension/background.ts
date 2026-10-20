@@ -34,7 +34,6 @@ export async function startCacheCleanup(store: Pick<Store, 'snapshot'>, alarms: 
   if (!await alarms.get(name)) await alarms.create(name, { periodInMinutes: 1 });
 }
 
-/** A connected content-script document. Tab identity comes from the port sender, never the payload. */
 export type PageDoc = { id: DocId; tabId: number; openerTabId: number | null; documentNonce: DocumentNonce | null };
 
 type ConnectedDoc = PageDoc & { revision: number };
@@ -288,7 +287,6 @@ export function createBackground(deps: BackgroundDeps) {
       scheduler.drop(docId);
     },
 
-    /** Messages from a page are untrusted until parsed. */
     async onPageMessage(docId: DocId, raw: unknown) {
       const doc = docs.get(docId);
       const message = PageMessageSchema.safeParse(raw);

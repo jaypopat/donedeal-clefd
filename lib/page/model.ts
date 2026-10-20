@@ -19,7 +19,6 @@ export type Binding = {
   warning: WarningView;
 };
 
-/** One search snapshot. A new search key means a new context, never a merge. */
 export type SearchModel = {
   kind: 'search';
   searchKey: SearchKey;
@@ -55,11 +54,6 @@ async function bindingFor(observed: Observed, coverage: Coverage, previous: Bind
   };
 }
 
-/**
- * Folds the cards currently in the DOM into the snapshot. Cards keep their
- * first-observed order, and the first LIMITS.maxCandidates form the sample.
- * A changed sample invalidates every price label at once.
- */
 export async function reconcileSearch(
   model: SearchModel,
   observed: readonly Observed[],

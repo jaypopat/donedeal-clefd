@@ -70,7 +70,6 @@ async function warningBranch(work: WarningWork, deps: AssessDeps): Promise<NonNu
   return { results };
 }
 
-/** Runs the requested branches independently. Neither branch's failure affects the other. */
 export async function assess(request: AssessRequest, deps: AssessDeps): Promise<AssessResponse> {
   const [price, warnings] = await Promise.all([
     request.price ? priceBranch(request.price) : null,

@@ -23,7 +23,6 @@ export type ContextSnapshot = {
 export type PriceJob = { key: string; listingId: ListingId; targetFp: TargetFp; facts: ListingFacts };
 export type WarningJob = { key: string; contentFp: ContentFp; target: WarningTarget };
 
-/** A document's outstanding work. A newer sync replaces whatever is still queued. */
 export type DocWork = {
   generation: number;
   price: { context: ContextSnapshot; jobs: PriceJob[] } | null;
@@ -52,7 +51,6 @@ type Batch = {
 
 export type Scheduler = ReturnType<typeof createScheduler>;
 
-/** Batches missing work per document, at most `maxTargets` listings and `maxInFlight` requests at once. */
 export function createScheduler(deps: SchedulerDeps) {
   const maxInFlight = deps.maxInFlight ?? LIMITS.maxConcurrentRequests;
   const maxTargets = deps.maxTargets ?? LIMITS.maxTargetsPerRequest;

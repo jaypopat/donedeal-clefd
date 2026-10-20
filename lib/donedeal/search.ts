@@ -43,7 +43,6 @@ const NextSearchSchema = z.object({
   }),
 });
 
-/** Structured search data, present only when the page's embedded data matches the current URL. */
 export type SearchData = {
   filters: SearchFilters;
   ads: ReadonlyMap<ListingId, SearchAd>;
@@ -124,11 +123,6 @@ function parseMeta(items: readonly string[]): MetaFacts {
   return facts;
 }
 
-/**
- * Reads one rendered result card. Promoted cards carry a `campaign` query and are
- * absent from the embedded search data, so they keep DOM-only facts and never
- * inherit the search's filter facts.
- */
 function observeCard(element: Element, data: SearchData | null): CardObservation | null {
   const link = element.querySelector('a[href*="/cars-for-sale/"]');
   const href = link?.getAttribute('href');

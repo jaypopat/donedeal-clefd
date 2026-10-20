@@ -12,7 +12,6 @@ export const AccessSchema = z.discriminatedUnion('kind', [
 ]);
 export type Access = z.infer<typeof AccessSchema>;
 
-/** `generation` increases on every clear so late results from before it are rejected. */
 export const SettingsSchema = z.strictObject({
   version: z.literal(1),
   generation: z.int().min(0),

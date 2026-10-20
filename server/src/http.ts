@@ -12,10 +12,6 @@ const AiBindingSchema = z.custom<AiBinding>(
   (value) => typeof value === 'object' && value !== null && typeof Reflect.get(value, 'run') === 'function',
 );
 
-/**
- * Local development is the only configuration that serves requests. A hosted
- * Worker has no TYREKICK_ENV and fails closed until private access exists.
- */
 const DevConfigSchema = z.object({
   TYREKICK_ENV: z.literal('development'),
   ALLOWED_EXTENSION_ORIGIN: z.string().regex(/^chrome-extension:\/\/[a-p]{32}$/),
@@ -48,7 +44,6 @@ function errorResponse(error: ApiErrorCode, issues?: string[]): Response {
 
 type Body = { kind: 'text'; text: string } | { kind: 'too_large' } | { kind: 'undecodable' };
 
-/** Counts bytes as they arrive so an undeclared or understated length cannot exceed the limit. */
 async function readBoundedBody(request: Request, maxBytes: number): Promise<Body> {
   const declared = Number(request.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > maxBytes) return { kind: 'too_large' };

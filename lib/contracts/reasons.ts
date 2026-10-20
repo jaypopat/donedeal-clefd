@@ -2,7 +2,6 @@ import type { Finding, ReasonCode } from './assess';
 
 export type WarningLabel = 'suspicious' | 'check_details';
 
-/** Severity per reason. Business wording in a private ad stays a seller-type question. */
 export const REASON_SEVERITY = {
   payment_before_viewing: 'suspicious',
   shipping_only: 'suspicious',

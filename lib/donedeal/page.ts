@@ -3,10 +3,8 @@ import { parseListingHref } from '../contracts/ids';
 import type { Fuel, SellerType, Transmission } from '../contracts/listing';
 import { parseFuel, parseSellerTypeCode, parseTransmission } from './vocabulary';
 
-/** Normalised search path plus filter/sort/paging parameters. A new key is a new comparison context. */
 export type SearchKey = string & { readonly __brand: 'SearchKey' };
 
-/** Facts every organic result in this search shares because the search filters them. */
 export type SearchFilters = {
   make: string | null;
   model: string | null;
@@ -58,10 +56,6 @@ function single(params: URLSearchParams, name: string): string | null {
   return values.length === 1 && values[0] ? values[0] : null;
 }
 
-/**
- * Filter facts from the URL. Make and model come only from confirmed page data,
- * because path segments alone do not distinguish a make from other routes.
- */
 export function searchFilters(
   params: URLSearchParams,
   makeModel: { make: string; model: string | null } | null,

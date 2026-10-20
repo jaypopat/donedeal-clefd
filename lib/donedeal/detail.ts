@@ -46,7 +46,6 @@ function detailPrice(pageProps: z.infer<typeof NextDetailSchema>['props']['pageP
   return parseHeadlinePrice(dom);
 }
 
-/** Reads a car ad page. Embedded data must belong to the listing in the address bar. */
 export function observeDetail(doc: Document, listing: ListingRef): DetailObservation | null {
   const parsed = NextDetailSchema.safeParse(readNextData(doc));
   if (!parsed.success) return null;

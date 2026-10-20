@@ -3,7 +3,6 @@ import type { RedactedText } from '../../../lib/privacy/redact';
 import type { Meter, ModelGateway } from './gateway';
 import { ModelFailure } from './gateway';
 
-/** Fixed yes/no questions. The answer probability stays internal to the evidence policy. */
 export const QUESTIONS = {
   payment_before_viewing: 'Does the text explicitly demand a deposit or any payment before the buyer can see the car in person?',
   shipping_only: 'Does the text say the car can only be shipped or delivered, with no chance to view it in person first?',

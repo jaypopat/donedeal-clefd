@@ -3,7 +3,6 @@ import type { Fuel, ListingFacts, Mileage, SellerType, Transmission } from '../.
 import { mileageKm } from '../../lib/contracts/listing';
 import { LIMITS } from '../../lib/contracts/versions';
 
-/** Provisional prototype thresholds. Review them against labelled searches before trusting them. */
 export const PRICE_POLICY = {
   minMatches: 5,
   minPlausibleEur: 500,
@@ -28,7 +27,6 @@ type ValidatedListingFacts = ListingFacts & {
   sellerType: SellerType;
 };
 
-/** A listing with every essential fact known and a plausible cash price. */
 type Comparand = {
   facts: ValidatedListingFacts;
   eur: number;
@@ -76,7 +74,6 @@ function engineCompatible(target: ListingFacts, candidate: ListingFacts): boolea
   return Math.abs(target.engineLitres - candidate.engineLitres) <= PRICE_POLICY.engineToleranceLitres;
 }
 
-/** Same year, mileage and price as another ad: most likely the same car listed twice. */
 function duplicateKey(comparand: Comparand): string {
   return `${comparand.identity}|${comparand.year}|${comparand.km}|${comparand.eur}`;
 }
@@ -114,7 +111,6 @@ function matchesFor(target: Comparand, pool: readonly Comparand[], window: Windo
   return [...byDuplicate.values()];
 }
 
-/** The label survives dropping any one comparable and tightening the matching window. */
 function isStable(target: Comparand, matches: readonly Comparand[], pool: readonly Comparand[], label: PriceLabel): boolean {
   const prices = matches.map((match) => match.eur);
   for (let skip = 0; skip < prices.length; skip++) {
@@ -140,10 +136,6 @@ function closest(target: Comparand, matches: readonly Comparand[]): Comparable[]
     }));
 }
 
-/**
- * Compares a target with close matches among the supplied search candidates.
- * Abstains rather than falling back to a typical label.
- */
 export function assessPrice(input: { target: ListingFacts; candidates: readonly ListingFacts[] }): PriceResult {
   const others = input.candidates
     .filter((candidate) => candidate.listingId !== input.target.listingId)

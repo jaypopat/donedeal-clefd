@@ -39,7 +39,6 @@ export type WarningEntry = z.infer<typeof WarningEntrySchema>;
 
 export type CacheEntry = PriceEntry | WarningEntry;
 
-/** Price and warning results share one bound but never one key. */
 export const CacheSchema = z.strictObject({
   version: z.literal(1),
   generation: z.int().min(0),
@@ -117,7 +116,6 @@ export function factsAgree(a: ListingFacts, b: ListingFacts): boolean {
   );
 }
 
-/** A recent full-listing check that may enrich a card whose visible facts still agree. */
 export function freshDetailWarning(cache: Cache, card: ListingFacts, now: number): WarningEntry | null {
   const matches = cache.entries.filter(
     (entry): entry is WarningEntry =>
