@@ -1,0 +1,296 @@
+{
+  "page": "/search/[...section]",
+  "query": {
+    "transmission": "Automatic",
+    "section": [
+      "cars",
+      "Toyota",
+      "Aqua"
+    ]
+  },
+  "props": {
+    "pageProps": {
+      "ads": [
+        {
+          "id": 42864633,
+          "title": "2016 TOYOTA  AQUA 1.5 HYBRID AUTOMATIC *FINANCE*",
+          "section": {
+            "name": "cars",
+            "displayName": "Cars"
+          },
+          "relativeUrl": "/cars-for-sale/2016-toyota-aqua-1-5-hybrid-automatic-finance/42864633",
+          "metaInfo": [
+            "2016",
+            "1.5 Petrol Hybrid",
+            "68,000\u00a0km"
+          ],
+          "priceInfo": {
+            "price": "\u20ac10,495",
+            "financePPM": "From \u20ac218/mo",
+            "priceOnRequest": false,
+            "priceInEuro": 10495
+          },
+          "mileageInKm": 68000,
+          "tags": [
+            {
+              "type": "default",
+              "displayName": "6 month warranty"
+            },
+            {
+              "type": "default",
+              "displayName": "History checked"
+            },
+            {
+              "type": "default",
+              "displayName": "Delivery"
+            }
+          ],
+          "tagsV2": [
+            {
+              "type": "default",
+              "displayName": "6 month warranty"
+            },
+            {
+              "type": "default",
+              "displayName": "History checked"
+            },
+            {
+              "type": "default",
+              "displayName": "Delivery"
+            }
+          ],
+          "dealer": {
+            "id": 1000,
+            "name": "Example Motors",
+            "type": "synthetic"
+          }
+        },
+        {
+          "id": 42383659,
+          "title": "2016 VOLKSWAGEN POLO 1.2 PETROL AUTO*FINANCE*",
+          "section": {
+            "name": "cars",
+            "displayName": "Cars"
+          },
+          "relativeUrl": "/cars-for-sale/2016-volkswagen-polo-1-2-petrol-autofinance/42383659",
+          "metaInfo": [
+            "2016",
+            "1.2 Petrol",
+            "104,500\u00a0km"
+          ],
+          "priceInfo": {
+            "price": "\u20ac11,495",
+            "financePPM": "From \u20ac239/mo",
+            "priceOnRequest": false,
+            "priceInEuro": 11495
+          },
+          "mileageInKm": 104500,
+          "tags": [
+            {
+              "type": "default",
+              "displayName": "6 month warranty"
+            },
+            {
+              "type": "default",
+              "displayName": "History checked"
+            },
+            {
+              "type": "default",
+              "displayName": "Delivery"
+            }
+          ],
+          "tagsV2": [
+            {
+              "type": "default",
+              "displayName": "6 month warranty"
+            },
+            {
+              "type": "default",
+              "displayName": "History checked"
+            },
+            {
+              "type": "default",
+              "displayName": "Delivery"
+            }
+          ]
+        },
+        {
+          "id": 41265436,
+          "title": "2016 VOLKSWAGEN POLO TSI 1.2 AUTO *ONLY 40K MILES*",
+          "section": {
+            "name": "cars",
+            "displayName": "Cars"
+          },
+          "relativeUrl": "/cars-for-sale/2016-volkswagen-polo-tsi-1-2-auto-only-40k-miles/41265436",
+          "metaInfo": [
+            "2016",
+            "1.2 Petrol",
+            "63,987\u00a0km"
+          ],
+          "priceInfo": {
+            "price": "\u20ac11,495",
+            "financePPM": "From \u20ac239/mo",
+            "priceOnRequest": false,
+            "priceInEuro": 11495
+          },
+          "mileageInKm": 63987,
+          "tags": [
+            {
+              "type": "default",
+              "displayName": "6 month warranty"
+            },
+            {
+              "type": "default",
+              "displayName": "History checked"
+            },
+            {
+              "type": "default",
+              "displayName": "Delivery"
+            }
+          ],
+          "tagsV2": [
+            {
+              "type": "default",
+              "displayName": "6 month warranty"
+            },
+            {
+              "type": "default",
+              "displayName": "History checked"
+            },
+            {
+              "type": "default",
+              "displayName": "Delivery"
+            }
+          ],
+          "dealer": {
+            "id": 1002,
+            "name": "Example Motors",
+            "type": "synthetic"
+          }
+        },
+        {
+          "id": 42132696,
+          "title": "2015 VOLKSWAGEN POLO  GTI 1.8  *FINANCE*",
+          "section": {
+            "name": "cars",
+            "displayName": "Cars"
+          },
+          "relativeUrl": "/cars-for-sale/2015-volkswagen-polo-gti-1-8-finance/42132696",
+          "metaInfo": [
+            "2015",
+            "1.8 Petrol",
+            "93,000\u00a0km"
+          ],
+          "priceInfo": {
+            "price": "\u20ac13,995",
+            "financePPM": "From \u20ac290/mo",
+            "priceOnRequest": false,
+            "priceInEuro": 13995
+          },
+          "mileageInKm": 93000,
+          "tags": [
+            {
+              "type": "default",
+              "displayName": "6 month warranty"
+            },
+            {
+              "type": "default",
+              "displayName": "History checked"
+            },
+            {
+              "type": "default",
+              "displayName": "Delivery"
+            }
+          ],
+          "tagsV2": [
+            {
+              "type": "default",
+              "displayName": "6 month warranty"
+            },
+            {
+              "type": "default",
+              "displayName": "History checked"
+            },
+            {
+              "type": "default",
+              "displayName": "Delivery"
+            }
+          ],
+          "dealer": {
+            "id": 1003,
+            "name": "Example Motors",
+            "type": "synthetic"
+          }
+        },
+        {
+          "id": 41115061,
+          "title": "2016 AUDI A1 1.0 TFSI AUTO*ONLY 36K MILES* FINANCE",
+          "section": {
+            "name": "cars",
+            "displayName": "Cars"
+          },
+          "relativeUrl": "/cars-for-sale/2016-audi-a1-1-0-tfsi-autoonly-36k-miles-finance/41115061",
+          "metaInfo": [
+            "2016",
+            "1.0 Petrol",
+            "57,936\u00a0km"
+          ],
+          "priceInfo": {
+            "price": "\u20ac13,995",
+            "financePPM": "From \u20ac290/mo",
+            "priceOnRequest": false,
+            "priceInEuro": 13995
+          },
+          "mileageInKm": 57936,
+          "tags": [
+            {
+              "type": "default",
+              "displayName": "6 month warranty"
+            },
+            {
+              "type": "default",
+              "displayName": "History checked"
+            },
+            {
+              "type": "default",
+              "displayName": "Delivery"
+            }
+          ],
+          "tagsV2": [
+            {
+              "type": "default",
+              "displayName": "6 month warranty"
+            },
+            {
+              "type": "default",
+              "displayName": "History checked"
+            },
+            {
+              "type": "default",
+              "displayName": "Delivery"
+            }
+          ],
+          "dealer": {
+            "id": 1004,
+            "name": "Example Motors",
+            "type": "synthetic"
+          }
+        }
+      ],
+      "spotlights": [],
+      "initialMakeModels": [
+        {
+          "make": "Toyota",
+          "model": [
+            "Aqua"
+          ],
+          "trim": null
+        }
+      ],
+      "paging": {
+        "currentPage": 1,
+        "pageSize": 30
+      }
+    }
+  }
+}

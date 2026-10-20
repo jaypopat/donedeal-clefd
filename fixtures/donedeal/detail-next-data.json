@@ -1,0 +1,305 @@
+{
+  "page": "/[section]/[title]/[adId]",
+  "props": {
+    "pageProps": {
+      "id": 42864633,
+      "section": {
+        "name": "cars"
+      },
+      "header": "2016 TOYOTA  AQUA 1.5 HYBRID AUTOMATIC *FINANCE*",
+      "relativeUrl": "/cars-for-sale/2016-toyota-aqua-1-5-hybrid-automatic-finance/42864633",
+      "price": "10,495",
+      "priceEuro": 10495,
+      "currency": "EUR",
+      "sellerType": "PRO",
+      "keyInfo": [
+        "2016",
+        "1.5 Petrol Hybrid",
+        "68,000\u00a0km"
+      ],
+      "displayAttributes": [
+        {
+          "name": "make",
+          "displayName": "Make",
+          "value": "Toyota"
+        },
+        {
+          "name": "model",
+          "displayName": "Model",
+          "value": "Aqua"
+        },
+        {
+          "name": "trim",
+          "displayName": "Trim",
+          "value": ""
+        },
+        {
+          "name": "trimCodeDescription",
+          "displayName": "Trim level",
+          "value": ""
+        },
+        {
+          "name": "year",
+          "displayName": "Year",
+          "value": "2016"
+        },
+        {
+          "name": "mileage",
+          "displayName": "Mileage",
+          "value": "68,000\u00a0km"
+        },
+        {
+          "name": "fuelType",
+          "displayName": "Fuel type",
+          "value": "Petrol Hybrid"
+        },
+        {
+          "name": "transmission",
+          "displayName": "Transmission",
+          "value": "Automatic"
+        },
+        {
+          "name": "bodyType",
+          "displayName": "Body type",
+          "value": "Hatchback"
+        },
+        {
+          "name": "engine",
+          "displayName": "Engine size",
+          "value": "1.5 L"
+        },
+        {
+          "name": "batteryCapacity",
+          "displayName": "Battery capacity",
+          "value": ""
+        },
+        {
+          "name": "enginePower",
+          "displayName": "Engine power",
+          "value": ""
+        },
+        {
+          "name": "acceleration",
+          "displayName": "Acceleration (0-100 km/h)",
+          "value": ""
+        },
+        {
+          "name": "seats",
+          "displayName": "Seats",
+          "value": "5"
+        },
+        {
+          "name": "numDoors",
+          "displayName": "Doors",
+          "value": "5"
+        },
+        {
+          "name": "colour",
+          "displayName": "Colour",
+          "value": "Other"
+        },
+        {
+          "name": "country",
+          "displayName": "Current country of reg.",
+          "value": "Ireland"
+        },
+        {
+          "name": "countryOfPreviousRegistration",
+          "displayName": "Imported",
+          "value": "Unknown"
+        },
+        {
+          "name": "owners",
+          "displayName": "Total owners",
+          "value": "1"
+        },
+        {
+          "name": "roadTax",
+          "displayName": "Road tax",
+          "value": "170"
+        },
+        {
+          "name": "NCTExpiry",
+          "displayName": "NCT expiry",
+          "value": ""
+        },
+        {
+          "name": "safetyRating",
+          "displayName": "Euro NCAP safety rating",
+          "value": ""
+        }
+      ],
+      "structuredAttributes": [
+        {
+          "name": "overview",
+          "displayName": "Overview",
+          "values": [
+            {
+              "name": "make",
+              "displayName": "Make",
+              "value": "Toyota"
+            },
+            {
+              "name": "model",
+              "displayName": "Model",
+              "value": "Aqua"
+            },
+            {
+              "name": "trim",
+              "displayName": "Trim",
+              "value": ""
+            },
+            {
+              "name": "trimCodeDescription",
+              "displayName": "Trim level",
+              "value": ""
+            },
+            {
+              "name": "year",
+              "displayName": "Year",
+              "value": "2016"
+            },
+            {
+              "name": "mileage",
+              "displayName": "Mileage",
+              "value": "68,000\u00a0km"
+            },
+            {
+              "name": "fuelType",
+              "displayName": "Fuel type",
+              "value": "Petrol Hybrid"
+            },
+            {
+              "name": "transmission",
+              "displayName": "Transmission",
+              "value": "Automatic"
+            },
+            {
+              "name": "bodyType",
+              "displayName": "Body type",
+              "value": "Hatchback"
+            },
+            {
+              "name": "seats",
+              "displayName": "Seats",
+              "value": "5"
+            },
+            {
+              "name": "numDoors",
+              "displayName": "Doors",
+              "value": "5"
+            },
+            {
+              "name": "colour",
+              "displayName": "Colour",
+              "value": "Other"
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "displayName": "Ownership & history",
+          "values": [
+            {
+              "name": "country",
+              "displayName": "Current country of reg.",
+              "value": "Ireland"
+            },
+            {
+              "name": "countryOfPreviousRegistration",
+              "displayName": "Imported",
+              "value": "Unknown"
+            },
+            {
+              "name": "owners",
+              "displayName": "Total owners",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "name": "runningCosts",
+          "displayName": "Running costs",
+          "values": [
+            {
+              "name": "roadTax",
+              "displayName": "Road tax",
+              "value": "170"
+            }
+          ]
+        },
+        {
+          "name": "performance",
+          "displayName": "Performance",
+          "values": [
+            {
+              "name": "engine",
+              "displayName": "Engine size",
+              "value": "1.5 L"
+            }
+          ]
+        }
+      ],
+      "vehicleSummary": {
+        "values": [
+          {
+            "name": "mileage",
+            "displayName": "Mileage",
+            "displayValue": "68,000km",
+            "displayValueV2": {
+              "header": "68,000km",
+              "subtext": "Mileage"
+            }
+          },
+          {
+            "name": "year",
+            "displayName": "Year",
+            "displayValue": "2016",
+            "displayValueV2": {
+              "header": "2016",
+              "subtext": "Year"
+            }
+          },
+          {
+            "name": "engine",
+            "displayName": "Engine",
+            "displayValue": "1.5L Petrol Hybrid",
+            "displayValueV2": {
+              "header": "Petrol hybrid",
+              "subtext": "1.5L"
+            }
+          },
+          {
+            "name": "transmission",
+            "displayName": "Transmission",
+            "displayValue": "Automatic",
+            "displayValueV2": {
+              "header": "Automatic",
+              "subtext": ""
+            }
+          },
+          {
+            "name": "NCTExpiry",
+            "displayName": "NCT expiry",
+            "displayValue": "",
+            "displayValueV2": {
+              "header": "NCT ---",
+              "subtext": ""
+            }
+          },
+          {
+            "name": "owners",
+            "displayName": "Total owners",
+            "displayValue": "1",
+            "displayValueV2": {
+              "header": "1 owner",
+              "subtext": ""
+            }
+          }
+        ]
+      },
+      "description": "Full service history. Viewing is available before payment.",
+      "priceOnRequest": false
+    }
+  }
+}
