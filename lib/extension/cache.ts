@@ -104,6 +104,7 @@ export function factsAgree(a: ListingFacts, b: ListingFacts): boolean {
     priceAgrees &&
     mileageAgrees &&
     engineAgrees &&
+    a.damageMentioned === b.damageMentioned &&
     same(a.year, b.year) &&
     sameText(a.make, b.make) &&
     sameText(a.model, b.model) &&
