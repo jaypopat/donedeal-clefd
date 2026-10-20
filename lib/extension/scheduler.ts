@@ -34,7 +34,7 @@ export type SendOutcome = { kind: 'response'; response: AssessResponse } | { kin
 
 export type SchedulerDeps = {
   send(request: AssessRequest, signal: AbortSignal): Promise<SendOutcome>;
-  onPrice(input: { docIds: DocId[]; generation: number; context: ContextSnapshot; job: PriceJob; result: PriceResult }): void;
+  onPrice(input: { subscribers: { docId: DocId; context: ContextSnapshot }[]; generation: number; context: ContextSnapshot; job: PriceJob; result: PriceResult }): void;
   onWarning(input: { docIds: DocId[]; generation: number; job: WarningJob; result: WarningResult }): void;
   maxInFlight?: number;
   maxTargets?: number;
@@ -46,7 +46,7 @@ type Batch = {
   context: ContextSnapshot | null;
   priceJobs: PriceJob[];
   warningJobs: WarningJob[];
-  subscribers: Map<string, Set<DocId>>;
+  subscribers: Map<string, Map<DocId, ContextSnapshot | null>>;
   cancelled: boolean;
 };
 
@@ -59,11 +59,11 @@ export function createScheduler(deps: SchedulerDeps) {
   const queue = new Map<DocId, DocWork>();
   const inFlight = new Set<Batch>();
 
-  function subscribeIfInFlight(key: string, docId: DocId, generation: number): boolean {
+  function subscribeIfInFlight(key: string, docId: DocId, generation: number, context: ContextSnapshot | null): boolean {
     for (const batch of inFlight) {
       const subscribers = batch.subscribers.get(key);
       if (subscribers && batch.generation === generation) {
-        subscribers.add(docId);
+        subscribers.set(docId, context);
         return true;
       }
     }
@@ -79,7 +79,7 @@ export function createScheduler(deps: SchedulerDeps) {
 
       const remainingPrice: PriceJob[] = [];
       for (const job of work.price?.jobs ?? []) {
-        if (subscribeIfInFlight(job.key, docId, work.generation)) continue;
+        if (subscribeIfInFlight(job.key, docId, work.generation, work.price?.context ?? null)) continue;
         if (fits(job.listingId)) {
           priceJobs.push(job);
           listings.add(job.listingId);
@@ -87,7 +87,7 @@ export function createScheduler(deps: SchedulerDeps) {
       }
       const remainingWarnings: WarningJob[] = [];
       for (const job of work.warnings) {
-        if (subscribeIfInFlight(job.key, docId, work.generation)) continue;
+        if (subscribeIfInFlight(job.key, docId, work.generation, null)) continue;
         if (fits(job.target.facts.listingId)) {
           warningJobs.push(job);
           listings.add(job.target.facts.listingId);
@@ -101,8 +101,9 @@ export function createScheduler(deps: SchedulerDeps) {
       }
       if (priceJobs.length === 0 && warningJobs.length === 0) continue;
 
-      const subscribers = new Map<string, Set<DocId>>();
-      for (const job of [...priceJobs, ...warningJobs]) subscribers.set(job.key, new Set([docId]));
+      const subscribers = new Map<string, Map<DocId, ContextSnapshot | null>>();
+      for (const job of priceJobs) subscribers.set(job.key, new Map([[docId, work.price?.context ?? null]]));
+      for (const job of warningJobs) subscribers.set(job.key, new Map([[docId, null]]));
       return {
         controller: new AbortController(),
         generation: work.generation,
@@ -137,14 +138,15 @@ export function createScheduler(deps: SchedulerDeps) {
   }
 
   function settle(batch: Batch, outcome: SendOutcome) {
-    const docIds = (key: string) => [...(batch.subscribers.get(key) ?? [])];
+    const docIds = (key: string) => [...(batch.subscribers.get(key)?.keys() ?? [])];
     const failure = outcome.kind === 'failed' ? outcome.error : 'invalid_response';
     const response = outcome.kind === 'response' ? outcome.response : null;
     if (batch.context) {
       const results = new Map(response?.price?.results.map((entry) => [entry.listingId, entry.result]));
       for (const job of batch.priceJobs) {
         const result = results.get(job.listingId) ?? { kind: 'unavailable', error: failure };
-        deps.onPrice({ docIds: docIds(job.key), generation: batch.generation, context: batch.context, job, result });
+        const subscribers = [...(batch.subscribers.get(job.key) ?? [])].flatMap(([docId, context]) => context ? [{ docId, context }] : []);
+        deps.onPrice({ subscribers, generation: batch.generation, context: batch.context, job, result });
       }
     }
     const warnings = new Map(response?.warnings?.results.map((entry) => [entry.listingId, entry.result]));

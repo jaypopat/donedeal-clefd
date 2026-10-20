@@ -71,8 +71,8 @@ export function createBackground(deps: BackgroundDeps) {
 
   const scheduler = createScheduler({
     send: deps.send,
-    onPrice({ docIds, generation, context, job, result }) {
-      const operations = recipients(docIds);
+    onPrice({ subscribers, generation, context, job, result }) {
+      const deliveries = subscribers.map((subscriber) => ({ ...subscriber, operations: recipients([subscriber.docId]) }));
       const assessment = {
         result,
         scope: 'this_search' as const,
@@ -95,12 +95,17 @@ export function createBackground(deps: BackgroundDeps) {
       }
       void currentGeneration().then((current) => {
         if (current !== generation) return;
-        deliverPrice(operations, {
-          listingId: job.listingId,
-          targetFp: job.targetFp,
-          context: { contextId: context.contextId, contextFp: context.contextFp },
-          price: { kind: 'assessed', assessment },
-        });
+        for (const subscriber of deliveries) {
+          deliverPrice(subscriber.operations, {
+            listingId: job.listingId,
+            targetFp: job.targetFp,
+            context: { contextId: subscriber.context.contextId, contextFp: subscriber.context.contextFp },
+            price: {
+              kind: 'assessed',
+              assessment: { ...assessment, observedAt: subscriber.context.observedAt, loadedCount: subscriber.context.loadedCount },
+            },
+          });
+        }
       });
     },
     onWarning({ docIds, generation, job, result }) {
