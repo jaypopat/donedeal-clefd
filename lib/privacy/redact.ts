@@ -8,13 +8,13 @@ const IRISH_COUNTY = 'CE|CN|CW|DL|KE|KK|KY|LD|LH|LK|LM|LS|MH|MN|MO|OY|RN|SO|TN|T
 const RULES: ReadonlyArray<readonly [RegExp, string]> = [
   [/\b(?:https?:\/\/|www\.)[^\s<>"']+/gi, '[link]'],
   [/[A-Z0-9._%+-]+@[A-Z0-9-]+(?:\.[A-Z0-9-]+)*\.[A-Z]{2,}/gi, '[email]'],
-  [/(?:\+|\b00)\s?353[\s().-]*\d(?:[\s().-]*\d){6,10}/g, '[phone]'],
+  [/(?:\+|\b00)[ \t().-]*[1-9](?:[ \t().-]*\d){6,14}\b/g, '[phone]'],
   [/\b0\d{1,2}(?:[\s.-]?\d){6,8}\b/g, '[phone]'],
   [/\b\d{7,}\b/g, '[number]'],
-  [/\b(?=[A-HJ-NPR-Z0-9]*\d)(?=[A-HJ-NPR-Z0-9]*[A-HJ-NPR-Z])[A-HJ-NPR-Z0-9]{17}\b/g, '[vin]'],
-  [new RegExp(`\\b\\d{2,3}[\\s-]?(?:${IRISH_COUNTY})[\\s-]?\\d{1,6}\\b`, 'g'), '[reg]'],
-  [/\b[A-Z]{2}\d{2}\s?[A-Z]{3}\b/g, '[reg]'],
-  [/\b[AC-FHKNPRTV-Y]\d{2}\s?[0-9AC-FHKNPRTV-Y]{4}\b/g, '[eircode]'],
+  [/\b(?=[A-HJ-NPR-Z0-9]*\d)(?=[A-HJ-NPR-Z0-9]*[A-HJ-NPR-Z])[A-HJ-NPR-Z0-9]{17}\b/gi, '[vin]'],
+  [new RegExp(`\\b\\d{2,3}[\\s-]?(?:${IRISH_COUNTY})[\\s-]?\\d{1,6}\\b`, 'gi'), '[reg]'],
+  [/\b[A-Z]{2}\d{2}\s?[A-Z]{3}\b/gi, '[reg]'],
+  [/\b[AC-FHKNPRTV-Y]\d{2}\s?[0-9AC-FHKNPRTV-Y]{4}\b/gi, '[eircode]'],
 ];
 
 function applyRules(text: string): string {

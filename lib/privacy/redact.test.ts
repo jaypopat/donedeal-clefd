@@ -8,9 +8,24 @@ describe('redact', () => {
     expect<unknown>(text).toBe('Call [phone] or [phone], or [phone]. Email [email], see [link]');
   });
 
+  test('removes international phone numbers before text is accepted as redacted', () => {
+    for (const number of ['+44 7700 900123', '+1 (415) 555-0123', '0044 7700 900123']) {
+      const text = `Call ${number} before viewing.`;
+      expect<unknown>(redact(text)).toBe('Call [phone] before viewing.');
+      expect(isRedactedText(text)).toBe(false);
+      expect(isRedactedText(redact(text))).toBe(true);
+    }
+  });
+
   test('removes plates, VINs, Eircodes and long digit runs', () => {
     const text = redact('Reg 161-D-12345 and 12 KY 999. UK plate AB12 CDE. VIN WVWZZZ6RZGY123456. Near D02 X285. Ref 123456789.');
     expect<unknown>(text).toBe('Reg [reg] and [reg]. UK plate [reg]. VIN [vin]. Near [eircode]. Ref [number].');
+  });
+
+  test('removes identifiers regardless of letter case', () => {
+    const text = 'Reg 161-d-12345 and 182-kE-9999. UK ab12 cde. VIN wvwzzz6rzgy123456. Near d02 x285.';
+    expect<unknown>(redact(text)).toBe('Reg [reg] and [reg]. UK [reg]. VIN [vin]. Near [eircode].');
+    expect(isRedactedText(text)).toBe(false);
   });
 
   test('keeps the vehicle facts that warnings compare', () => {
