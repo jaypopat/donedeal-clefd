@@ -1,0 +1,2 @@
+ts	phase	decision	why	evidence	result
+2026-10-20T17:29:32Z	frame	Build the v0.2 Chrome prototype with one Worker and local caching	The product spec is the source of truth; live browser and model access already work	docs/product-spec.md; /tmp/tyrekick-preflight/browser-headed.cjs	baseline compile/build passed; model HTTP 200
