@@ -6,6 +6,8 @@ import type { BackgroundMessage, PriceDelivery, WarningDelivery } from '../messa
 import { facts } from '../../tests/support/listings';
 import { NOW, cards, harness, newDocumentNonce, searchSync, until } from '../../tests/support/extension';
 import { CacheSchema } from './cache';
+import { classifyPage } from '../donedeal/page';
+import { acceptPrice, newSearch, reconcileSearch, type PageModel } from '../page/model';
 
 const TAB = { tabId: 1, openerTabId: null };
 
@@ -72,6 +74,40 @@ describe('consent', () => {
 });
 
 describe('batching', () => {
+  test('identical searches share one delayed request and both accept their own context', async () => {
+    const h = await enabled();
+    h.hold(true);
+    const route = classifyPage(new URL('https://www.donedeal.ie/cars/Volkswagen/Golf'));
+    if (route.kind !== 'search') throw new Error('expected search route');
+    const cohort = cards(7);
+    const first = (await reconcileSearch(newSearch(route.searchKey, NOW), cohort, NOW)).model;
+    const second = (await reconcileSearch(newSearch(route.searchKey, NOW + 1), cohort, NOW + 1)).model;
+    expect(first.contextId).not.toBe(second.contextId);
+    const nonce1 = await connect(h, 'first');
+    const nonce2 = await connect(h, 'second', { tabId: 2, openerTabId: null });
+    await h.background.onPageMessage('first', searchSync(nonce1, cohort, first.contextId));
+    await until(() => h.gates.length === 1);
+    const sync2 = searchSync(nonce2, cohort, second.contextId);
+    sync2.page.observedAt = NOW + 1;
+    await h.background.onPageMessage('second', sync2);
+    expect(h.requests).toHaveLength(1);
+    h.hold(false);
+    h.gates.shift()?.release();
+    await until(() => priceDeliveries(h.messagesFor('first')).length === 7 && priceDeliveries(h.messagesFor('second')).length === 7);
+    for (const [docId, model] of [['first', first], ['second', second]] as const) {
+      let accepted: PageModel = model;
+      for (const delivery of priceDeliveries(h.messagesFor(docId))) {
+        expect(delivery.context?.contextId).toBe(model.contextId);
+        expect(delivery.price).toMatchObject({ kind: 'assessed', assessment: { observedAt: model.observedAt, result: { kind: 'ready' } } });
+        const next = acceptPrice(accepted, delivery);
+        expect(next).not.toBeNull();
+        if (next) accepted = next;
+      }
+      expect(accepted.kind === 'search' && [...accepted.bindings.values()].every((binding) => binding.price.kind === 'assessed')).toBe(true);
+    }
+    expect(h.requests).toHaveLength(1);
+  });
+
   test('sends at most 20 targets per request and two requests at a time', async () => {
     const h = await enabled();
     h.hold(true);
@@ -93,6 +129,20 @@ describe('batching', () => {
 });
 
 describe('caching', () => {
+  test('status reads persist expiry while paused at the TTL boundary', async () => {
+    const h = await enabled();
+    const nonce = await connect(h, 'doc');
+    await h.background.onPageMessage('doc', searchSync(nonce, cards(3)));
+    await until(() => storedEntries(h).length === 6);
+    await h.background.onPopupMessage({ type: 'pause' });
+    h.clock.now += LIMITS.assessmentTtlMs - 1;
+    expect(await h.background.onPopupMessage({ type: 'get-state' })).toEqual({ access: 'paused', cachedAssessments: 6 });
+    h.clock.now += 1;
+    expect(await h.background.onPopupMessage({ type: 'get-state' })).toEqual({ access: 'paused', cachedAssessments: 0 });
+    expect(storedEntries(h)).toEqual([]);
+    expect(h.requests).toHaveLength(1);
+  });
+
   test('serves repeat snapshots from cache and reprices a grown snapshot without repeating text checks', async () => {
     const h = await enabled();
     const nonce = await connect(h, 'doc');
@@ -513,6 +563,17 @@ describe('detail pages', () => {
   function detailSync(nonce: ReturnType<typeof newDocumentNonce>, detailFacts: ReturnType<typeof facts>, text = 'Full service history.') {
     return { type: 'sync', documentNonce: nonce, page: { kind: 'detail', facts: detailFacts, text: redact(text), observedAt: NOW } };
   }
+
+  test('newly revealed damage invalidates a ready originating search price', async () => {
+    const h = await enabled();
+    const target = await pricedSearch(h);
+    expect(priceDeliveries(h.messagesFor('search'))[0]?.price).toMatchObject({ kind: 'assessed', assessment: { result: { kind: 'ready' } } });
+    const nonce = await connect(h, 'damaged', { tabId: 8, openerTabId: 7 });
+    await h.background.onPageMessage('damaged', detailSync(nonce, { ...target.facts, damageMentioned: true }, 'Accident damaged.'));
+    expect(priceDeliveries(h.messagesFor('damaged'))[0]?.price).toEqual({ kind: 'no_search_context' });
+    await until(() => warningDeliveries(h.messagesFor('damaged')).length === 1);
+    expect(warningDeliveries(h.messagesFor('damaged'))[0]?.assessment.coverage).toBe('detail');
+  });
 
   test('reuses the originating search price for an ad opened from it, in the same or a new tab', async () => {
     const h = await enabled();
