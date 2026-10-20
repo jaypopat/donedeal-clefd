@@ -47,7 +47,7 @@ export default defineBackground(() => {
   });
 
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (sender.id !== browser.runtime.id || sender.tab || !sender.url?.startsWith(browser.runtime.getURL('/popup.html'))) return;
+    if (sender.id !== browser.runtime.id || sender.url !== browser.runtime.getURL('/popup.html')) return;
     void background.onPopupMessage(message).then(sendResponse);
     return true;
   });
