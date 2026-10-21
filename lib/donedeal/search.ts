@@ -14,6 +14,7 @@ import {
   parseEngineAndFuel,
   parseHeadlinePrice,
   parseMileageText,
+  parseSellerTypeCode,
   parseYear,
 } from './vocabulary';
 
@@ -28,6 +29,7 @@ const SearchAdSchema = z.object({
     .nullish(),
   mileageInKm: z.number().int().nonnegative().nullish(),
   dealer: z.object({}).nullish(),
+  seller: z.object({ type: z.string().nullish() }).nullish(),
 });
 type SearchAd = z.infer<typeof SearchAdSchema>;
 
@@ -144,7 +146,10 @@ function observeCard(element: Element, data: SearchData | null): CardObservation
   const adKm = ad?.mileageInKm;
   const mileage: Mileage | null = typeof adKm === 'number' ? { value: adKm, unit: 'km' } : meta.mileage;
   const filters = !promoted && data ? data.filters : null;
-  const sellerType = filters?.sellerType ?? (ad?.dealer ? 'dealer' : null);
+  const declaredSeller = ad?.seller?.type ? parseSellerTypeCode(ad.seller.type) : null;
+  const sellerType = declaredSeller === 'private' && ad?.dealer
+    ? null
+    : declaredSeller ?? (ad?.dealer ? 'dealer' : filters?.sellerType ?? null);
   const facts = ListingFactsSchema.safeParse({
     listingId: ref.id,
     url: ref.url,

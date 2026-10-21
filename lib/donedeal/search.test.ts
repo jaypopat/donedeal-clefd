@@ -155,6 +155,32 @@ describe('search cards', () => {
     expect(cards.find((card) => card.facts.listingId === '42864633')?.facts.sellerType).toBeNull();
   });
 
+  test('reads explicit private seller metadata without collecting seller details', () => {
+    const { cards } = searchPage('https://www.donedeal.ie/cars/Toyota/Aqua?transmission=Automatic', {
+      query: { section: ['cars', 'Toyota', 'Aqua'], transmission: 'Automatic' },
+      props: { pageProps: {
+        initialMakeModels: [{ make: 'Toyota', model: ['Aqua'] }],
+        ads: [{ id: 42864633, seller: { type: 'PRIVATE', name: 'Example seller', phone: '087 123 4567' } }],
+      } },
+    });
+    const toyota = cards.find((card) => card.facts.listingId === '42864633');
+    expect(toyota?.facts.sellerType).toBe('private');
+    expect(JSON.stringify(toyota?.facts)).not.toMatch(/Example seller|087 123 4567/);
+  });
+
+  test('does not infer private status from missing or unrecognised seller metadata', () => {
+    for (const seller of [undefined, { type: 'UNKNOWN' }]) {
+      const { cards } = searchPage('https://www.donedeal.ie/cars/Toyota/Aqua?transmission=Automatic', {
+        query: { section: ['cars', 'Toyota', 'Aqua'], transmission: 'Automatic' },
+        props: { pageProps: {
+          initialMakeModels: [{ make: 'Toyota', model: ['Aqua'] }],
+          ads: [{ id: 42864633, seller }],
+        } },
+      });
+      expect(cards.find((card) => card.facts.listingId === '42864633')?.facts.sellerType).toBeNull();
+    }
+  });
+
   test('carries only allowlisted facts and a redacted title', () => {
     const { cards } = searchPage('https://www.donedeal.ie/cars?area=Dublin', fixtureJson('search-next-data.json'));
     const toyota = cards.find((card) => card.facts.listingId === '42864633');
