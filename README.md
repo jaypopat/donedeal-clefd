@@ -6,6 +6,8 @@ This v0.2 prototype runs with a local Cloudflare Worker. Hosted requests fail cl
 
 ## Run the extension with real models
 
+A `justfile` wraps these steps: `just build`, then `just worker id=YOUR_EXTENSION_ID` (or set `TYREKICK_EXTENSION_ID`). Run `just` to list recipes.
+
 You need Bun, desktop Chrome, and a Cloudflare account with Workers AI access. The startup script uses an existing `CLOUDFLARE_API_TOKEN` environment variable or the saved cf CLI login. It passes credentials only to the Worker development process.
 
 1. Install the locked dependencies.

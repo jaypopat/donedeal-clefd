@@ -32,4 +32,4 @@ The initial live-page inspection found structured year, fuel, mileage, and cash 
 
 ## Review record
 
-Record decisions and verification checkpoints in `.audit/tyrekick-v02.tsv`. Keep generated screenshots and local credentials out of Git. Capture repeatable verification commands in the repository.
+Keep generated screenshots and local credentials out of Git. Capture repeatable verification commands in the repository.
