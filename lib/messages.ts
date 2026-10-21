@@ -83,6 +83,7 @@ export const PriceDeliverySchema = z.strictObject({
   price: z.discriminatedUnion('kind', [
     z.strictObject({ kind: z.literal('assessed'), assessment: PriceAssessmentSchema }),
     z.strictObject({ kind: z.literal('no_search_context') }),
+    z.strictObject({ kind: z.literal('comparison_unavailable'), reason: z.enum(['facts_changed', 'assessment_missing', 'damage_mentioned']) }),
   ]),
 });
 export type PriceDelivery = z.infer<typeof PriceDeliverySchema>;

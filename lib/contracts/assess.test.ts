@@ -69,6 +69,9 @@ describe('assessment request contract', () => {
     expect(ListingFactsSchema.safeParse({ ...listing, transmission: null, titleEvidence: { recovered: ['transmission'], conflicts: [] } }).success).toBe(false);
     expect(ListingFactsSchema.safeParse({ ...listing, titleEvidence: { recovered: ['transmission'], conflicts: [] }, searchEvidence: ['transmission'] }).success).toBe(false);
     expect(ListingFactsSchema.safeParse({ ...listing, fuel: null, searchEvidence: ['fuel'] }).success).toBe(false);
+    expect(ListingFactsSchema.safeParse({ ...listing, titleEvidence: { recovered: ['year'], conflicts: [] } }).success).toBe(false);
+    expect(ListingFactsSchema.safeParse({ ...listing, year: null, titleEvidence: { recovered: [], conflicts: ['year'] } }).success).toBe(false);
+    expect(ListingFactsSchema.safeParse({ ...listing, titleEvidence: { recovered: [], conflicts: ['make', 'model', 'transmission', 'year'] } }).success).toBe(true);
   });
 
   test('pins the canonical material registry and matching policy together', () => {

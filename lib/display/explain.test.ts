@@ -79,6 +79,35 @@ describe('badges', () => {
 });
 
 describe('explanations', () => {
+  test('changed saved facts explain why the comparison no longer applies while warnings stay visible', () => {
+    const card = view({ kind: 'comparison_unavailable', reason: 'facts_changed' }, checked(suspicious, 'detail'), 'detail');
+    expect(badgesFor(card).map((badge) => badge.text)).toEqual(['Not enough data', 'Suspicious']);
+    const explanation = explain(card, time);
+    expect(explanation.price.summary).toBe('The saved search comparison no longer applies to this ad.');
+    expect(explanation.price.comparables).toEqual([]);
+    expect(explanation.warnings.findings[0]?.title).toBeTruthy();
+    expect(JSON.stringify(explanation.price)).not.toContain('no saved search');
+  });
+
+  test('an evicted search comparison and a truly direct visit have different explanations', () => {
+    const warning: WarningView = { kind: 'checking' };
+    expect(explain(view({ kind: 'comparison_unavailable', reason: 'assessment_missing' }, warning, 'detail'), time).price.summary)
+      .toBe('This ad was opened from search results, but its saved comparison is no longer available.');
+    expect(explain(view({ kind: 'no_search_context' }, warning, 'detail'), time).price.summary).toBe('There is no saved search for this ad.');
+  });
+
+  test('damage abstains explicitly with or without a saved assessment and preserves available origin metadata', () => {
+    const warning: WarningView = { kind: 'checking' };
+    const result: PriceResult = { kind: 'insufficient', reason: { code: 'damage_mentioned' }, unknownFactCount: 0 };
+    for (const price of [priced(result, 'originating_search'), { kind: 'comparison_unavailable', reason: 'damage_mentioned' }] satisfies PriceView[]) {
+      const section = explain(view(price, warning, 'detail'), time).price;
+      expect(section.summary).toContain('mentions damage or parts');
+      expect(section.comparables).toEqual([]);
+      expect(JSON.stringify(section)).not.toContain('no saved search');
+      if (price.kind === 'assessed') expect(section.scope).toContain('from the results you opened this ad from');
+    }
+  });
+
   test('limited detail text never claims a full or clean listing check', () => {
     const limited = view(priced(great), checked({ kind: 'checked', findings: [] }, 'detail_partial'), 'detail_partial');
     expect(badgesFor(limited).map((badge) => badge.text)).toContain('Limited info');

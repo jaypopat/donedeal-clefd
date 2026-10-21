@@ -168,6 +168,19 @@ describe('search snapshot', () => {
 });
 
 describe('detail page', () => {
+  test.each(['facts_changed', 'assessment_missing', 'damage_mentioned'] as const)('preserves the %s abstention for the current detail facts', async (reason) => {
+    const [card] = observed(1);
+    if (!card) throw new Error('empty');
+    const model = await newDetail({ ...card, coverage: 'detail' }, NOW);
+    const delivery: PriceDelivery = {
+      listingId: card.facts.listingId, targetFp: model.binding.targetFp, context: null,
+      price: { kind: 'comparison_unavailable', reason },
+    };
+    expect(acceptPrice(model, delivery)).toMatchObject({ binding: { price: delivery.price } });
+    const changed = await newDetail({ ...card, facts: { ...card.facts, transmission: 'automatic' }, coverage: 'detail' }, NOW);
+    expect(acceptPrice(changed, delivery)).toBeNull();
+  });
+
   test('partial coverage survives sync and rejects a result for full coverage', async () => {
     const [card] = observed(1);
     if (!card) throw new Error('empty');

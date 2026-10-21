@@ -96,8 +96,7 @@ export function acceptPrice(model: PageModel, delivery: PriceDelivery): PageMode
   if (model.kind === 'detail') {
     const { binding } = model;
     if (delivery.context !== null || delivery.listingId !== binding.facts.listingId || delivery.targetFp !== binding.targetFp) return null;
-    const price: PriceView = delivery.price.kind === 'assessed' ? delivery.price : { kind: 'no_search_context' };
-    return { ...model, binding: { ...binding, price } };
+    return { ...model, binding: { ...binding, price: delivery.price } };
   }
   const binding = model.bindings.get(delivery.listingId);
   if (!binding || binding.price.kind === 'outside_sample' || delivery.price.kind !== 'assessed') return null;

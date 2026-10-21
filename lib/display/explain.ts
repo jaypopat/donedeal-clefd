@@ -74,6 +74,7 @@ function priceBadge(view: PriceView): Badge {
     case 'checking':
       return CHECKING;
     case 'no_search_context':
+    case 'comparison_unavailable':
     case 'outside_sample':
       return NOT_ENOUGH;
     case 'assessed': {
@@ -207,6 +208,22 @@ function priceSection(view: PriceView, time: (ms: number) => string): PriceSecti
         summary: 'There is no saved search for this ad.',
         details: ['Open the ad from DoneDeal search results to compare it with that search.'],
       };
+    case 'comparison_unavailable': {
+      switch (view.reason) {
+        case 'facts_changed':
+          return { ...empty, heading: 'Not enough data', summary: 'The saved search comparison no longer applies to this ad.',
+            details: ['The full listing has different or additional vehicle details. Open the ad from updated search results to compare it again.'] };
+        case 'assessment_missing':
+          return { ...empty, heading: 'Not enough data', summary: 'This ad was opened from search results, but its saved comparison is no longer available.',
+            details: ['Open the ad from DoneDeal search results again to compare it with that search.'] };
+        case 'damage_mentioned':
+          return { ...empty, heading: 'Not enough data', ...insufficientSummary({ code: 'damage_mentioned' }) };
+        default: {
+          const _exhaustive: never = view.reason;
+          return _exhaustive;
+        }
+      }
+    }
     case 'outside_sample':
       return { ...empty, heading: 'Not enough data', summary: `Only the first ${view.sampleSize} loaded cards are compared.` };
     case 'assessed':

@@ -41,6 +41,7 @@ describe('fingerprints', () => {
       facts({ id: base.listingId, variant: { kind: 'unmarked', source: 'trim' } }),
       facts({ id: base.listingId, titleEvidence: { recovered: ['transmission'], conflicts: [] } }),
       facts({ id: base.listingId, titleEvidence: { recovered: [], conflicts: ['transmission'] } }),
+      facts({ id: base.listingId, titleEvidence: { recovered: [], conflicts: ['year'] } }),
       facts({ id: base.listingId, searchEvidence: ['make', 'model', 'transmission'] }),
     ];
     for (const changed of variants) {

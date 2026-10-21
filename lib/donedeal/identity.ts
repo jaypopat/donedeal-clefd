@@ -1,7 +1,7 @@
 import type { ListingFacts, TitleField, Transmission, Variant } from '../contracts/listing';
 import { CATALOG_MODELS, canonicalMake, markedVariants, variantsFor } from '../contracts/variants';
 
-type Identity = Pick<ListingFacts, 'make' | 'model' | 'transmission' | 'variant' | 'titleEvidence'>;
+type Identity = Pick<ListingFacts, 'make' | 'model' | 'year' | 'transmission' | 'variant' | 'titleEvidence'>;
 
 const MAKE_ALIASES: Record<string, readonly string[]> = {
   audi: ['audi'],
@@ -64,6 +64,20 @@ function gearbox(title: string): { value: Transmission | null; ambiguous: boolea
   return { value: automatic === manual ? null : automatic ? 'automatic' : 'manual', ambiguous: automatic && manual };
 }
 
+function vehicleYear(title: string): number | null {
+  const vehicle = title
+    .replace(/\b(?:19|20)\d{2}-[a-z]{1,2}-\d+\b/gi, ' ')
+    .replace(/\b(?:19|20)\d{2}\s*(?:nct|tax)\s*$/gi, ' ')
+    .replace(/\b(?:19|20)\d{2}[-/.]\d{1,2}(?:[-/.]\d{1,2})?\b/g, ' ')
+    .replace(/\b(?:\d{1,2}[-/.]){1,2}(?:19|20)\d{2}\b/g, ' ')
+    .replace(/\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(?:\d{1,2}(?:st|nd|rd|th)?[,\s]+)?(?:19|20)\d{2}\b/gi, ' ')
+    .replace(/\b(?:nct|tax|test)\s*(?:(?:until|till|to|valid|expires?|expiry|due|in|is)\s+)*[:/-]?\s*(?:19|20)\d{2}\b/gi, ' ')
+    .replace(/\b(?:19|20)\d{2}\s*(?:km|kms|miles?|cc|eur|euros?|bhp)\b/gi, ' ')
+    .replace(/[€£$]\s*(?:19|20)\d{2}\b/g, ' ');
+  const [year, ...others] = vehicle.matchAll(/\b(?:19|20)\d{2}\b/g);
+  return year && others.length === 0 ? Number(year[0]) : null;
+}
+
 function readVariant(make: string | null, model: string | null, title: string, trim: string | null): Variant {
   if (variantsFor(make, model).length === 0) return { kind: 'not_catalogued' };
   const titleCodes = markedVariants(make, model, title);
@@ -77,13 +91,16 @@ function readVariant(make: string | null, model: string | null, title: string, t
 
 export function readIdentity(input: {
   title: string;
-  listed: { make: string | null; model: string | null; transmission: Transmission | null };
+  listed: Pick<ListingFacts, 'make' | 'model' | 'year' | 'transmission'>;
   corroborate: { make: string | null; model: string | null } | null;
   trim: string | null;
 }): Identity {
   let { make, model, transmission } = input.listed;
-  const recovered: TitleField[] = [];
+  const { year } = input.listed;
+  const recovered: Identity['titleEvidence']['recovered'] = [];
   const conflicts: TitleField[] = [];
+  const titleYear = vehicleYear(input.title);
+  if (year !== null && titleYear !== null && year !== titleYear) conflicts.push('year');
   const listedMake = make ? canonicalMake(make) : null;
   if (listedMake && Object.entries(MAKE_ALIASES).some(([name, aliases]) =>
     name !== listedMake && aliases.some((alias) => namesContraryMake(input.title, alias)))) conflicts.push('make');
@@ -107,7 +124,7 @@ export function readIdentity(input: {
   }
   const distinctConflicts = [...new Set(conflicts)].sort();
   return {
-    make, model, transmission,
+    make, model, year, transmission,
     variant: readVariant(make, model, input.title, input.trim),
     titleEvidence: { recovered: recovered.filter((field) => !distinctConflicts.includes(field)).sort(), conflicts: distinctConflicts },
   };
