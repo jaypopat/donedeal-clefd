@@ -96,7 +96,7 @@ describe('explanations', () => {
     expect(badgesFor(card)).toEqual([{ text: '2 similar', tone: 'muted' }, { text: 'Suspicious', tone: 'danger' }]);
     expect(accessibleSummary(card)).toContain('Price: 2 similar cars, no price label');
     const { price } = explain(card, time);
-    expect(price.summary).toBe('Only 0 close matches. At least 5 are needed for a price label.');
+    expect(price.summary).toBe('Similar listings were found, but key details are unconfirmed. No price label is given.');
     expect(price.comparables).toHaveLength(2);
     expect(price.comparables.map((comparable) => comparable.url)).toEqual(candidates.map((candidate) => candidate.url));
     expect(price.comparables.every((comparable) => comparable.label.includes('transmission unconfirmed'))).toBe(true);

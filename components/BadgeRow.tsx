@@ -73,10 +73,10 @@ export function BadgeRow({ view }: { view: CardView }) {
         <h2>{explanation.price.heading}</h2>
         {explanation.price.scope && <p className="scope">{explanation.price.scope}</p>}
         <p>{explanation.price.summary}</p>
-        {explanation.price.details.map((detail) => <p key={detail}>{detail}</p>)}
-        {explanation.price.comparables.length > 0 && <><h3>Closest matches</h3><ul>
+        {explanation.price.comparables.length > 0 && <><h3>Similar listings</h3><ul>
           {explanation.price.comparables.map((match) => <li key={match.url}><a href={match.url} target="_blank" rel="noopener noreferrer">{match.label}</a></li>)}
         </ul></>}
+        {explanation.price.details.map((detail) => <p key={detail}>{detail}</p>)}
       </section>
       <section aria-label="Warning checks">
         <h2>{explanation.warnings.heading}</h2>

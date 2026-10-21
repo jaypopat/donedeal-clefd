@@ -110,7 +110,10 @@ export function badgesFor(view: CardView): Badge[] {
 export function accessibleSummary(view: CardView): string {
   const [price, warning] = [priceBadge(view.price), warningBadge(view.warning)];
   const parts = [`Price: ${price.text}`];
-  if (view.price.kind === 'assessed' && view.price.assessment.result.kind === 'reference') parts[0] += ' cars, no price label';
+  if (view.price.kind === 'assessed' && view.price.assessment.result.kind === 'reference') {
+    const result = view.price.assessment.result;
+    parts[0] += result.exactCount + result.partialCount === 1 ? ' car, no price label' : ' cars, no price label';
+  }
   parts.push(warning ? `Warnings: ${warning.text}` : 'No warning signs detected');
   return `Tyrekick. ${parts.join('. ')}. Show details.`;
 }
@@ -230,7 +233,9 @@ function priceSection(view: PriceView, time: (ms: number) => string): PriceSecti
   }
   if (result.kind === 'reference') {
     const summary = result.why === 'few_matches'
-      ? `Only ${result.exactCount} close ${result.exactCount === 1 ? 'match' : 'matches'}. At least ${MIN_PRICE_MATCHES} are needed for a price label.`
+      ? result.exactCount === 0
+        ? 'Similar listings were found, but key details are unconfirmed. No price label is given.'
+        : `Only ${result.exactCount} close ${result.exactCount === 1 ? 'match' : 'matches'}. At least ${MIN_PRICE_MATCHES} are needed for a price label.`
       : result.why === 'dispersed'
         ? `Prices of the ${result.exactCount} close matches vary too widely for a label.`
         : 'A label changes when a match is left out or the matching window changes, so none is shown.';
