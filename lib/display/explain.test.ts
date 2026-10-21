@@ -2,7 +2,9 @@ import { describe, expect, test } from 'bun:test';
 import type { PriceResult, WarningResult } from '../contracts/assess';
 import { parseListingHref } from '../contracts/ids';
 import type { Coverage } from '../contracts/listing';
-import { badgesFor, explain } from './explain';
+import { accessibleSummary, badgesFor, explain } from './explain';
+import { facts } from '../../tests/support/listings';
+import { assessPrice } from '../../server/src/pricing';
 import type { CardView, PriceView, WarningView } from './views';
 
 const NOW = 1_792_000_000_000;
@@ -25,6 +27,7 @@ const great: PriceResult = {
   matchCount: 6,
   unknownFactCount: 2,
   comparables: [],
+  bounds: { variant: { kind: 'not_separated' }, targetFromTitle: [], targetFromSearch: [], targetConflicts: [], matchesFromTitle: 0, matchesFromSearch: 0 },
 };
 
 function priced(result: PriceResult, scope: 'this_search' | 'originating_search' = 'this_search'): PriceView {
@@ -85,6 +88,59 @@ describe('explanations', () => {
     expect(JSON.stringify(warnings)).not.toMatch(/Full listing checked|No warning signs detected/);
   });
 
+  test('neutral references show linked prices, unconfirmed fields and no qualitative label', () => {
+    const target = facts({ id: '40000001', transmission: null });
+    const candidates = [facts({ id: '40000002', eur: 17000 }), facts({ id: '40000003', eur: 19000, mileage: { value: 91000, unit: 'km' } })];
+    const result = assessPrice({ target, candidates });
+    const card = view(priced(result), checked(suspicious, 'card'));
+    expect(badgesFor(card)).toEqual([{ text: '2 similar', tone: 'muted' }, { text: 'Suspicious', tone: 'danger' }]);
+    expect(accessibleSummary(card)).toContain('Price: 2 similar cars, no price label');
+    const { price } = explain(card, time);
+    expect(price.summary).toBe('Only 0 close matches. At least 5 are needed for a price label.');
+    expect(price.comparables).toHaveLength(2);
+    expect(price.comparables.map((comparable) => comparable.url)).toEqual(candidates.map((candidate) => candidate.url));
+    expect(price.comparables.every((comparable) => comparable.label.includes('transmission unconfirmed'))).toBe(true);
+    expect(price.details.join(' ')).toContain('Linked asking prices €17,000–€19,000. This car €15,000.');
+    expect(price.details.join(' ')).toContain('Unmarked does not confirm a base trim');
+    expect(JSON.stringify(price)).not.toMatch(/Great price|Typical price|Expensive/);
+    expect(price.scope).toContain('Compared with this search');
+  });
+
+  test('matching bounds disclose marked variants and title versus search evidence', () => {
+    const variant = { kind: 'marked', code: 'gti', source: 'trim' } as const;
+    const target = facts({ id: '40000001', variant, titleEvidence: { recovered: ['transmission'], conflicts: [] }, searchEvidence: ['make', 'model'] });
+    const candidate = facts({ id: '40000002', eur: 18000, variant, titleEvidence: { recovered: ['transmission'], conflicts: [] }, searchEvidence: ['make', 'model'] });
+    const { price } = explain(view(priced(assessPrice({ target, candidates: [candidate] })), { kind: 'checking' }), time);
+    expect(price.details).toContain('Compared only with listings explicitly marked GTI in the title or trim.');
+    expect(price.details.join(' ')).toContain('read from its title');
+    expect(price.details.join(' ')).toContain('verified search filters');
+    expect(price.comparables[0]?.label).toContain('GTI');
+    const conflicted = facts({ id: '40000001', titleEvidence: { recovered: [], conflicts: ['transmission'] } });
+    const conflictView = explain(view(priced(assessPrice({ target: conflicted, candidates: [facts({ id: '40000002' })] })), { kind: 'checking' }), time);
+    expect(conflictView.price.details.join(' ')).toContain('Conflicting transmission evidence is unconfirmed');
+  });
+
+  test('uncatalogued models disclose that variants are not separated', () => {
+    const target = facts({ id: '40000001', model: 'Passat' });
+    const candidate = facts({ id: '40000002', model: 'Passat', eur: 18000 });
+    const { price } = explain(view(priced(assessPrice({ target, candidates: [candidate] })), { kind: 'checking' }), time);
+    expect(price.details.join(' ')).toContain('The variant catalog does not cover it');
+  });
+
+  test('dispersed and unstable results keep comparable links and explain abstention', () => {
+    for (const [eur, prices, why] of [
+      [15000, [10000, 12000, 18000, 24000, 30000, 31000], 'vary too widely'],
+      [15300, [17000, 17500, 18000, 18500, 19000], 'matching window changes'],
+    ] as const) {
+      const target = facts({ id: '40000001', eur });
+      const candidates = prices.map((eur, index) => facts({ id: String(40000002 + index), eur }));
+      const { price } = explain(view(priced(assessPrice({ target, candidates })), { kind: 'checking' }), time);
+      expect(price.summary).toContain(why);
+      expect(price.comparables).toHaveLength(5);
+      expect(JSON.stringify(price)).not.toMatch(/Great price|Typical price|Expensive/);
+    }
+  });
+
   test('price explanations are scoped to this search with count and sample time', () => {
     const { price } = explain(view(priced(great), checked({ kind: 'checked', findings: [] }, 'card')), time);
     expect(price.scope).toBe('Compared with this search · 6 close matches · sampled 14:32');
@@ -105,7 +161,6 @@ describe('explanations', () => {
     const unknown: PriceResult = {
       kind: 'insufficient',
       reason: { code: 'unknown_facts', fields: ['transmission'] },
-      matchCount: 0,
       unknownFactCount: 0,
     };
     const { price } = explain(view(priced(unknown), { kind: 'checking' }), time);

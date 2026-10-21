@@ -40,7 +40,7 @@ async function connect(h: ReturnType<typeof harness>, id: string, tab: { tabId: 
 }
 
 function storedEntries(h: ReturnType<typeof harness>) {
-  return CacheSchema.parse(h.local.data.get('tyrekick.assessments') ?? { version: 1, generation: 0, entries: [] }).entries;
+  return CacheSchema.parse(h.local.data.get('tyrekick.assessments') ?? { version: 2, generation: 0, entries: [] }).entries;
 }
 
 function delayNext<Args extends unknown[], Result>(operation: (...args: Args) => Promise<Result>) {
@@ -131,6 +131,16 @@ describe('batching', () => {
 });
 
 describe('caching', () => {
+  test('old cache schemas are discarded including otherwise valid entries', async () => {
+    const h = await enabled();
+    const nonce = await connect(h, 'doc');
+    await h.background.onPageMessage('doc', searchSync(nonce, cards(2)));
+    await until(() => storedEntries(h).length === 4);
+    const cache = CacheSchema.parse(h.local.data.get('tyrekick.assessments'));
+    h.local.data.set('tyrekick.assessments', { ...cache, version: 1 });
+    expect((await h.store.snapshot()).cache).toEqual({ version: 2, generation: 0, entries: [] });
+  });
+
   test('startup and scheduled cleanup remove expired storage while paused without requests', async () => {
     const h = await enabled();
     const nonce = await connect(h, 'doc');
@@ -632,6 +642,24 @@ describe('detail pages', () => {
     expect(saved.entries.some((entry) => entry.branch === 'warning' && entry.assessment.coverage === 'detail_partial')).toBe(true);
   });
 
+  test('revealed variants and identity contradictions invalidate originating prices while detail warnings run', async () => {
+    const h = await enabled();
+    const target = await pricedSearch(h);
+    const changes = [
+      facts({ id: target.facts.listingId, variant: { kind: 'marked', code: 'gti', source: 'trim' } }),
+      facts({ id: target.facts.listingId, variant: { kind: 'ambiguous' } }),
+      facts({ id: target.facts.listingId, titleEvidence: { recovered: [], conflicts: ['transmission'] } }),
+    ];
+    for (const [index, changed] of changes.entries()) {
+      const docId = `revealed-${index}`;
+      const nonce = await connect(h, docId, { tabId: 8 + index, openerTabId: 7 });
+      await h.background.onPageMessage(docId, detailSync(nonce, { ...changed, price: target.facts.price, mileage: target.facts.mileage }));
+      expect(priceDeliveries(h.messagesFor(docId))[0]?.price).toEqual({ kind: 'no_search_context' });
+      await until(() => warningDeliveries(h.messagesFor(docId)).length === 1);
+      expect(warningDeliveries(h.messagesFor(docId))[0]?.assessment.coverage).toBe('detail');
+    }
+  });
+
   test('newly revealed damage invalidates a ready originating search price', async () => {
     const h = await enabled();
     const target = await pricedSearch(h);
@@ -682,7 +710,7 @@ describe('detail pages', () => {
     await h.background.onPageMessage('detail', detailSync(detail, detailFacts));
     await until(() => storedEntries(h).some((entry) => entry.branch === 'warning'));
 
-    const cardFacts = { ...card.facts, transmission: null, make: null };
+    const cardFacts = facts({ id: card.facts.listingId, price: card.facts.price, mileage: card.facts.mileage, transmission: null, make: null });
     const agreeing = await connect(h, 'agree', { tabId: 4, openerTabId: null });
     await h.background.onPageMessage('agree', searchSync(agreeing, [{ ...card, facts: cardFacts }]));
     expect(warningDeliveries(h.messagesFor('agree'))[0]?.assessment).toMatchObject({ coverage: 'detail', reusedFromDetail: true });

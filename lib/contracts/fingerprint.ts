@@ -34,18 +34,21 @@ function factsJson(facts: ListingFacts): Json {
     sellerType: facts.sellerType,
     engineLitres: facts.engineLitres,
     damageMentioned: facts.damageMentioned,
+    variant: facts.variant,
+    titleEvidence: facts.titleEvidence,
+    searchEvidence: facts.searchEvidence,
   };
 }
 
 export async function targetFingerprint(facts: ListingFacts): Promise<TargetFp> {
-  const hex = await sha256Hex(`tyrekick.target.v1\n${canonicalJson(factsJson(facts))}`);
+  const hex = await sha256Hex(`tyrekick.target.v2\n${canonicalJson(factsJson(facts))}`);
   if (!isTargetFp(hex)) throw new Error('digest is not hex');
   return hex;
 }
 
 export async function contextFingerprint(candidates: readonly ListingFacts[]): Promise<ContextFp> {
   const sorted = [...candidates].sort((a, b) => a.listingId.localeCompare(b.listingId));
-  const hex = await sha256Hex(`tyrekick.context.v1\n${canonicalJson(sorted.map(factsJson))}`);
+  const hex = await sha256Hex(`tyrekick.context.v2\n${canonicalJson(sorted.map(factsJson))}`);
   if (!isContextFp(hex)) throw new Error('digest is not hex');
   return hex;
 }
@@ -56,7 +59,7 @@ export async function contentFingerprint(input: {
   coverage: Coverage;
 }): Promise<ContentFp> {
   const json = canonicalJson({ facts: factsJson(input.facts), text: input.text, coverage: input.coverage });
-  const hex = await sha256Hex(`tyrekick.content.v1\n${json}`);
+  const hex = await sha256Hex(`tyrekick.content.v2\n${json}`);
   if (!isContentFp(hex)) throw new Error('digest is not hex');
   return hex;
 }

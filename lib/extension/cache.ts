@@ -40,14 +40,14 @@ export type WarningEntry = z.infer<typeof WarningEntrySchema>;
 export type CacheEntry = PriceEntry | WarningEntry;
 
 export const CacheSchema = z.strictObject({
-  version: z.literal(1),
+  version: z.literal(2),
   generation: z.int().min(0),
   entries: z.array(z.discriminatedUnion('branch', [PriceEntrySchema, WarningEntrySchema])).max(LIMITS.maxCachedAssessments),
 });
 export type Cache = z.infer<typeof CacheSchema>;
 
 export function emptyCache(generation: number): Cache {
-  return { version: 1, generation, entries: [] };
+  return { version: 2, generation, entries: [] };
 }
 
 export function priceKey(input: { listingId: ListingId; targetFp: TargetFp; contextFp: ContextFp }): string {
@@ -114,6 +114,16 @@ export function factsAgree(a: ListingFacts, b: ListingFacts): boolean {
     same(a.transmission, b.transmission) &&
     same(a.sellerType, b.sellerType)
   );
+}
+
+export function samePriceIdentity(a: ListingFacts, b: ListingFacts): boolean {
+  if (!factsAgree(a, b)) return false;
+  if (a.variant.kind !== b.variant.kind) return false;
+  if (a.variant.kind === 'marked' && (b.variant.kind !== 'marked' || a.variant.code !== b.variant.code)) return false;
+  if (a.variant.kind === 'ambiguous') return false;
+  if (a.titleEvidence.conflicts.join('|') !== b.titleEvidence.conflicts.join('|')) return false;
+  const fields = ['make', 'model', 'year', 'mileage', 'fuel', 'transmission', 'sellerType', 'engineLitres'] as const;
+  return fields.every((field) => a[field] !== null || b[field] === null);
 }
 
 export function freshDetailWarning(cache: Cache, card: ListingFacts, now: number): WarningEntry | null {

@@ -6,6 +6,7 @@ import { LIMITS } from '../contracts/versions';
 import type { RedactedText } from '../privacy/redact';
 import { redact } from '../privacy/redact';
 import { byClassPrefix, readNextData } from './dom';
+import { readIdentity } from './identity';
 import {
   cleanText,
   mentionsDamage,
@@ -59,22 +60,27 @@ export function observeDetail(doc: Document, listing: ListingRef): DetailObserva
   const attribute = (name: string) =>
     cleanText(String(pageProps.displayAttributes?.find((entry) => entry.name === name)?.value ?? ''));
   const header = cleanText(pageProps.header);
+  const description = pageProps.description ?? '';
+  const identity = readIdentity({
+    title: header,
+    listed: { make: attribute('make') || null, model: attribute('model') || null, transmission: parseTransmission(attribute('transmission')) },
+    corroborate: null,
+    trim: attribute('trim') || attribute('trimCodeDescription') || null,
+  });
   const facts = ListingFactsSchema.safeParse({
     listingId: listing.id,
     url: listing.url,
     price: detailPrice(pageProps, priceElement?.textContent ?? null),
     year: parseYear(attribute('year')),
     mileage: parseMileageText(attribute('mileage')),
-    make: attribute('make') || null,
-    model: attribute('model') || null,
+    ...identity,
+    searchEvidence: [],
     fuel: parseFuel(attribute('fuelType')),
-    transmission: parseTransmission(attribute('transmission')),
     sellerType: pageProps.sellerType ? parseSellerTypeCode(pageProps.sellerType) : null,
     engineLitres: parseEngineLitres(attribute('engine')),
-    damageMentioned: mentionsDamage(header),
+    damageMentioned: mentionsDamage(`${header}\n${description}`),
   });
   if (!facts.success) return null;
-  const description = pageProps.description ?? '';
   const source = `${header}\n\n${description}`;
   const coverage = Array.from(source).length > LIMITS.maxTextCodepoints ? 'detail_partial' : 'detail';
   return { anchor, facts: facts.data, text: redact(source), coverage };

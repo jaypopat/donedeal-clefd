@@ -71,7 +71,7 @@ test('submits real DOM cards, redacted titles and both price and warning identit
   h.port().receive({ type: 'price', documentNonce: sync.documentNonce, deliveries: [{
     listingId: card.facts.listingId, targetFp: await targetFingerprint(card.facts),
     context: { contextId: sync.page.contextId, contextFp: await contextFingerprint(sync.page.cards.map((entry) => entry.facts)) },
-    price: { kind: 'assessed', assessment: { result: { kind: 'insufficient', reason: { code: 'too_few_matches' }, matchCount: 0, unknownFactCount: 0 }, scope: 'this_search', observedAt: Date.now(), sampleSize: 4, loadedCount: 4 } },
+    price: { kind: 'assessed', assessment: { result: { kind: 'insufficient', reason: { code: 'no_close_matches' }, unknownFactCount: 0 }, scope: 'this_search', observedAt: Date.now(), sampleSize: 4, loadedCount: 4 } },
   }] });
   expect([...h.views.values()][0]?.price.kind).toBe('assessed');
   h.controller.opened(card.facts.url);

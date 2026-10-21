@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { isRedactedText, type RedactedText } from '../privacy/redact';
 import { ListingIdSchema, ListingUrlSchema, listingIdOfUrl } from './ids';
+import { VariantCodeSchema, variantsFor } from './variants';
 
 export const AskingPriceSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('cash'), eur: z.int().min(1).max(5_000_000) }),
@@ -38,6 +39,18 @@ export type Coverage = z.infer<typeof CoverageSchema>;
 
 const DisplayName = z.string().trim().min(1).max(60);
 
+export const TitleFieldSchema = z.enum(['make', 'model', 'transmission']);
+export type TitleField = z.infer<typeof TitleFieldSchema>;
+export const SearchFieldSchema = z.enum(['make', 'model', 'fuel', 'transmission', 'sellerType']);
+export type SearchField = z.infer<typeof SearchFieldSchema>;
+export const VariantSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('marked'), code: VariantCodeSchema, source: z.enum(['title', 'trim']) }),
+  z.strictObject({ kind: z.literal('unmarked'), source: z.enum(['title', 'trim']) }),
+  z.strictObject({ kind: z.literal('ambiguous') }),
+  z.strictObject({ kind: z.literal('not_catalogued') }),
+]);
+export type Variant = z.infer<typeof VariantSchema>;
+
 /**
  * Allowlisted vehicle facts. `null` means the page did not evidence the fact.
  * Nothing here identifies a seller, a plate, or a VIN.
@@ -56,10 +69,33 @@ export const ListingFactsSchema = z
     sellerType: SellerTypeSchema.nullable(),
     engineLitres: z.number().min(0.5).max(10).nullable(),
     damageMentioned: z.boolean(),
+    variant: VariantSchema,
+    titleEvidence: z.strictObject({
+      recovered: z.array(TitleFieldSchema).max(3),
+      conflicts: z.array(TitleFieldSchema).max(3),
+    }),
+    searchEvidence: z.array(SearchFieldSchema).max(5),
   })
   .refine((facts) => listingIdOfUrl(facts.url) === facts.listingId, {
     message: 'listing url and id disagree',
     path: ['url'],
+  })
+  .superRefine((facts, ctx) => {
+    const { recovered, conflicts } = facts.titleEvidence;
+    for (const fields of [recovered, conflicts, facts.searchEvidence]) {
+      if (fields.join('|') !== [...new Set(fields)].sort().join('|') || fields.some((field) => facts[field] === null)) {
+        ctx.addIssue({ code: 'custom', message: 'evidence fields must be known, sorted and unique' });
+      }
+    }
+    if (recovered.some((field) => conflicts.includes(field) || facts.searchEvidence.includes(field))) {
+      ctx.addIssue({ code: 'custom', message: 'title recovery cannot also be conflicting or search-derived' });
+    }
+    const codes = variantsFor(facts.make, facts.model);
+    const variant = facts.variant;
+    if ((codes.length === 0) !== (variant.kind === 'not_catalogued') ||
+        (variant.kind === 'marked' && !codes.includes(variant.code))) {
+      ctx.addIssue({ code: 'custom', message: 'variant does not belong to this make/model', path: ['variant'] });
+    }
   });
 export type ListingFacts = z.infer<typeof ListingFactsSchema>;
 

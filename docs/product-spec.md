@@ -45,6 +45,7 @@ Price labels:
 | Great price | Materially cheaper than close matches in the current search |
 | Typical price | Within the comparison group's normal asking-price band |
 | Expensive | Materially more expensive than close matches in the current search |
+| N similar | Relevant loaded listings shown as neutral references, without a price label |
 | Not enough data | Too few close matches or too much uncertainty |
 
 The explanation must say **“Compared with this search”**, with the comparison count and sample time. Great price is a price observation, not a recommendation to buy. Avoid whole-market language such as “Fair market value”.
@@ -97,6 +98,10 @@ For each target listing:
 - Compare with at least five distinct close matches as an initial prototype rule. Reject dispersed or unstable groups even when that count is met.
 - Calculate the median asking price and a descriptive spread using ordinary code. As tentative boundaries: at least 15% below the median → Great price; at least 15% above → Expensive; otherwise → Typical price.
 - Abstain when uncertain matching or reasonable variations in the cohort change the conclusion materially. Typical price must not be used as an uncertainty fallback.
+
+When one to four close matches exist, show their asking prices and links as neutral references. Dispersed or unstable groups can also supply references without a price label. Listings with unconfirmed gearbox or seller type can appear as tagged partial references, but never count toward the five matches needed for a label. Known title contradictions cannot support a label.
+
+Separate explicitly marked material variants through the canonical registry. An unmarked listing does not confirm a base trim. Explain this limit, and disclose when the registry does not separate a model's variants. Keep structured facts, verified search filters, and recovered title evidence distinct.
 
 Validate the count, matching windows, dispersion gates and price boundaries with reviewed examples before treating them as reliable. There is no trained transaction-price model in this version.
 

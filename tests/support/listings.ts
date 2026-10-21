@@ -1,5 +1,6 @@
 import type { ListingFacts } from '../../lib/contracts/listing';
 import { ListingFactsSchema } from '../../lib/contracts/listing';
+import { variantsFor } from '../../lib/contracts/variants';
 
 type FactsInput = { id: string; eur?: number | null } & Partial<Omit<ListingFacts, 'listingId' | 'url'>>;
 
@@ -18,6 +19,10 @@ export function facts({ id, eur = 15000, ...overrides }: FactsInput): ListingFac
     sellerType: 'dealer',
     engineLitres: 1.6,
     damageMentioned: false,
+    variant: variantsFor(overrides.make === undefined ? 'Volkswagen' : overrides.make, overrides.model === undefined ? 'Golf' : overrides.model).length
+      ? { kind: 'unmarked', source: 'title' } : { kind: 'not_catalogued' },
+    titleEvidence: { recovered: [], conflicts: [] },
+    searchEvidence: [],
     ...overrides,
   });
 }

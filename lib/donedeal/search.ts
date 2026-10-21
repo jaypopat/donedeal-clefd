@@ -1,13 +1,14 @@
 import { z } from 'zod';
 import type { ListingId } from '../contracts/ids';
 import { isListingId, parseListingHref } from '../contracts/ids';
-import type { AskingPrice, ListingFacts, Mileage } from '../contracts/listing';
+import type { AskingPrice, ListingFacts, Mileage, SearchField } from '../contracts/listing';
 import { ListingFactsSchema } from '../contracts/listing';
 import type { RedactedText } from '../privacy/redact';
 import { redact } from '../privacy/redact';
 import type { SearchFilters } from './page';
 import { searchFilters } from './page';
 import { byClassPrefix, readNextData } from './dom';
+import { readIdentity } from './identity';
 import {
   cleanText,
   mentionsDamage,
@@ -131,35 +132,44 @@ function observeCard(element: Element, data: SearchData | null): CardObservation
   const ref = href ? parseListingHref(href) : null;
   if (!link || !href || !ref) return null;
   const promoted = new URL(href, 'https://www.donedeal.ie').searchParams.has('campaign');
-  const ad = promoted ? undefined : data?.ads.get(ref.id);
+  const ad = data?.ads.get(ref.id);
   const title = cleanText(link.textContent);
   const priceElement = element.querySelector(byClassPrefix('Price-styled__Price-'));
   const anchor = element.querySelector(byClassPrefix('Price-styled__Wrapper-')) ?? priceElement;
   if (!anchor) return null;
-  const meta = parseMeta(
-    Array.from(element.querySelectorAll(byClassPrefix('SearchCard-styled__MetaInfoItem-')), (item) =>
-      cleanText(item.textContent),
-    ),
-  );
+  const metaItems = Array.from(element.querySelectorAll(byClassPrefix('SearchCard-styled__MetaInfoItem-')), (item) => cleanText(item.textContent));
+  const meta = parseMeta([...metaItems, ...(ad?.metaInfo ?? [])]);
   const headline = parseHeadlinePrice(priceElement?.textContent ?? null);
   const price = headline.kind === 'missing' && ad ? (cashFromAd(ad) ?? headline) : headline;
   const adKm = ad?.mileageInKm;
   const mileage: Mileage | null = typeof adKm === 'number' ? { value: adKm, unit: 'km' } : meta.mileage;
-  const filters = !promoted && data ? data.filters : null;
+  const member = data !== null && (!promoted || ad !== undefined);
+  const filters = member ? data.filters : null;
+  const identity = readIdentity({
+    title,
+    listed: { make: filters?.make ?? null, model: filters?.model ?? null, transmission: filters?.transmission ?? null },
+    corroborate: !member && data ? data.filters : null,
+    trim: null,
+  });
   const declaredSeller = ad?.seller?.type ? parseSellerTypeCode(ad.seller.type) : null;
   const sellerType = declaredSeller === 'private' && ad?.dealer
     ? null
     : declaredSeller ?? (ad?.dealer ? 'dealer' : filters?.sellerType ?? null);
+  const searchEvidence: SearchField[] = [];
+  if (filters?.make) searchEvidence.push('make');
+  if (filters?.model) searchEvidence.push('model');
+  if (filters?.transmission) searchEvidence.push('transmission');
+  if (meta.fuel === null && filters?.fuel) searchEvidence.push('fuel');
+  if (sellerType !== null && !declaredSeller && !ad?.dealer && filters?.sellerType) searchEvidence.push('sellerType');
   const facts = ListingFactsSchema.safeParse({
     listingId: ref.id,
     url: ref.url,
     price,
     year: meta.year,
     mileage,
-    make: filters?.make ?? null,
-    model: filters?.model ?? null,
+    ...identity,
+    searchEvidence: searchEvidence.sort(),
     fuel: meta.fuel ?? filters?.fuel ?? null,
-    transmission: filters?.transmission ?? null,
     sellerType,
     engineLitres: meta.engineLitres,
     damageMentioned: mentionsDamage(title),
@@ -171,13 +181,14 @@ function observeCard(element: Element, data: SearchData | null): CardObservation
 export const CARD_SELECTOR = byClassPrefix('Card-styled__Container-');
 
 export function observeCards(root: ParentNode, data: SearchData | null): CardObservation[] {
-  const seen = new Set<ListingId>();
-  const cards: CardObservation[] = [];
+  const cards = new Map<ListingId, CardObservation>();
   for (const element of root.querySelectorAll(CARD_SELECTOR)) {
     const card = observeCard(element, data);
-    if (!card || seen.has(card.facts.listingId)) continue;
-    seen.add(card.facts.listingId);
-    cards.push(card);
+    if (!card) continue;
+    const existing = cards.get(card.facts.listingId);
+    const href = element.querySelector('a[href*="/cars-for-sale/"]')?.getAttribute('href');
+    const promoted = href ? new URL(href, 'https://www.donedeal.ie').searchParams.has('campaign') : false;
+    if (!existing || !promoted) cards.set(card.facts.listingId, card);
   }
-  return cards;
+  return [...cards.values()];
 }

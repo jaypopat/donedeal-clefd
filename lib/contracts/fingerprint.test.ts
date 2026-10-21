@@ -33,4 +33,20 @@ describe('fingerprints', () => {
     expect(await contentFingerprint({ facts: listing, text, coverage: 'detail' })).not.toBe(fp);
     expect(await contentFingerprint({ facts: listing, text: redact('Partial service history'), coverage: 'card' })).not.toBe(fp);
   });
+
+  test('all fingerprints track variant classification and evidence changes', async () => {
+    const base = facts({ id: '40000001' });
+    const variants = [
+      facts({ id: base.listingId, variant: { kind: 'marked', code: 'gti', source: 'title' } }),
+      facts({ id: base.listingId, variant: { kind: 'unmarked', source: 'trim' } }),
+      facts({ id: base.listingId, titleEvidence: { recovered: ['transmission'], conflicts: [] } }),
+      facts({ id: base.listingId, titleEvidence: { recovered: [], conflicts: ['transmission'] } }),
+      facts({ id: base.listingId, searchEvidence: ['make', 'model', 'transmission'] }),
+    ];
+    for (const changed of variants) {
+      expect(await targetFingerprint(changed)).not.toBe(await targetFingerprint(base));
+      expect(await contextFingerprint([changed])).not.toBe(await contextFingerprint([base]));
+      expect(await contentFingerprint({ facts: changed, text: '', coverage: 'card' })).not.toBe(await contentFingerprint({ facts: base, text: '', coverage: 'card' }));
+    }
+  });
 });

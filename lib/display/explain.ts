@@ -1,4 +1,6 @@
-import type { EssentialField, FieldEvidenceName, InsufficientReason, PriceLabel } from '../contracts/assess';
+import type { Comparable, EssentialField, FieldEvidenceName, InsufficientReason, MatchBounds, PriceLabel } from '../contracts/assess';
+import { variantName } from '../contracts/variants';
+import { MIN_PRICE_MATCHES } from '../contracts/versions';
 import { warningLabel } from '../contracts/reasons';
 import type { PriceAssessment, WarningAssessment } from '../messages';
 import { REASON_TEMPLATES } from './templates';
@@ -77,6 +79,7 @@ function priceBadge(view: PriceView): Badge {
     case 'assessed': {
       const result = view.assessment.result;
       if (result.kind === 'ready') return LABELS[result.label];
+      if (result.kind === 'reference') return { text: `${result.exactCount + result.partialCount} similar`, tone: 'muted' };
       return result.kind === 'insufficient' ? NOT_ENOUGH : UNAVAILABLE;
     }
     default: {
@@ -107,11 +110,12 @@ export function badgesFor(view: CardView): Badge[] {
 export function accessibleSummary(view: CardView): string {
   const [price, warning] = [priceBadge(view.price), warningBadge(view.warning)];
   const parts = [`Price: ${price.text}`];
+  if (view.price.kind === 'assessed' && view.price.assessment.result.kind === 'reference') parts[0] += ' cars, no price label';
   parts.push(warning ? `Warnings: ${warning.text}` : 'No warning signs detected');
   return `Tyrekick. ${parts.join('. ')}. Show details.`;
 }
 
-function insufficientSummary(reason: InsufficientReason, matchCount: number): { summary: string; details: string[] } {
+function insufficientSummary(reason: InsufficientReason): { summary: string; details: string[] } {
   switch (reason.code) {
     case 'unknown_facts': {
       const names = reason.fields.map((field) => FIELD_NAMES[field]);
@@ -124,19 +128,16 @@ function insufficientSummary(reason: InsufficientReason, matchCount: number): { 
           : 'Close matches need these details.';
       return { summary: `This card doesn't show its ${list(names)}.`, details: [hint] };
     }
-    case 'too_few_matches':
-      return {
-        summary: `Only ${matchCount} close ${matchCount === 1 ? 'match' : 'matches'} among the loaded cards. At least 5 are needed.`,
-        details: [],
-      };
-    case 'dispersed':
-      return { summary: `Asking prices of the ${matchCount} close matches vary too widely to compare.`, details: [] };
-    case 'unstable':
-      return { summary: `The label would change if one of the ${matchCount} close matches were left out, so none is shown.`, details: [] };
+    case 'no_close_matches':
+      return { summary: 'No close matches among the loaded cards.', details: [] };
+    case 'variant_uncertain':
+      return { summary: 'The title and trim do not establish one material variant.', details: ['Conflicting variant markers cannot support a price comparison.'] };
+    case 'conflicting_facts':
+      return { summary: `The title conflicts with the ${list(reason.fields.map((field) => FIELD_NAMES[field]))} information.`, details: ['Confirm these details before comparing prices.'] };
     case 'no_cash_price':
       return { summary: 'There is no cash asking price to compare.', details: [] };
     case 'damage_mentioned':
-      return { summary: 'The title mentions damage or parts, so it is not compared with other cars.', details: [] };
+      return { summary: 'The listing mentions damage or parts, so it is not compared with other cars.', details: [] };
     default: {
       const _exhaustive: never = reason;
       return _exhaustive;
@@ -160,6 +161,35 @@ function sampleLimits(assessment: PriceAssessment, unknownFactCount: number): st
   }
   lines.push('Only cards loaded in this search count, not the wider market. Filters and promoted ads can skew them.');
   return lines;
+}
+
+function matchingLimits(bounds: MatchBounds): string[] {
+  const lines: string[] = [];
+  const variant = bounds.variant;
+  if (variant.kind === 'not_separated') {
+    lines.push("Trims and material variants aren't told apart for this model. The variant catalog does not cover it.");
+  } else if (variant.target.kind === 'marked') {
+    lines.push(`Compared only with listings explicitly marked ${variantName(variant.target.code)} in the title or trim.`);
+  } else {
+    lines.push(`Left out listings marked ${list(variant.codes.map(variantName))}. Unmarked does not confirm a base trim; an unmentioned variant may still be present.`);
+  }
+  if (bounds.targetFromTitle.length) lines.push(`This car's ${list(bounds.targetFromTitle.map((field) => FIELD_NAMES[field]))} information was read from its title.`);
+  if (bounds.targetFromSearch.length) lines.push(`This car's ${list(bounds.targetFromSearch.map((field) => FIELD_NAMES[field]))} information comes from the verified search filters.`);
+  if (bounds.targetConflicts.length) lines.push(`Conflicting ${list(bounds.targetConflicts.map((field) => FIELD_NAMES[field]))} evidence is unconfirmed and cannot count toward a price label.`);
+  if (bounds.matchesFromTitle) lines.push(`${bounds.matchesFromTitle} similar listings had details read from their titles.`);
+  if (bounds.matchesFromSearch) lines.push(`${bounds.matchesFromSearch} similar listings use verified search filters for some details.`);
+  return lines;
+}
+
+function comparableRows(comparables: readonly Comparable[]): PriceSection['comparables'] {
+  return comparables.map((comparable) => ({
+    url: comparable.url,
+    label: [
+      euro(comparable.priceEur), String(comparable.year), `${thousands(comparable.mileageKm)} km`,
+      ...(comparable.variant ? [variantName(comparable.variant)] : []),
+      ...comparable.unconfirmed.map((field) => `${FIELD_NAMES[field]} unconfirmed`),
+    ].join(' · '),
+  }));
 }
 
 function priceSection(view: PriceView, time: (ms: number) => string): PriceSection {
@@ -189,13 +219,32 @@ function priceSection(view: PriceView, time: (ms: number) => string): PriceSecti
     return { ...empty, heading: 'Temporarily unavailable', summary: 'The price check did not run. Try again later.' };
   }
   if (result.kind === 'insufficient') {
-    const { summary, details } = insufficientSummary(result.reason, result.matchCount);
+    const { summary, details } = insufficientSummary(result.reason);
     return {
       heading: 'Not enough data',
       scope: `Compared with this search · ${scopeLine(assessment, null, time)}`,
       summary,
       details: [...details, ...sampleLimits(assessment, result.unknownFactCount)],
       comparables: [],
+    };
+  }
+  if (result.kind === 'reference') {
+    const summary = result.why === 'few_matches'
+      ? `Only ${result.exactCount} close ${result.exactCount === 1 ? 'match' : 'matches'}. At least ${MIN_PRICE_MATCHES} are needed for a price label.`
+      : result.why === 'dispersed'
+        ? `Prices of the ${result.exactCount} close matches vary too widely for a label.`
+        : 'A label changes when a match is left out or the matching window changes, so none is shown.';
+    const prices = result.comparables.map((comparable) => comparable.priceEur);
+    return {
+      heading: `${result.exactCount + result.partialCount} similar`,
+      scope: `Compared with this search · ${scopeLine(assessment, result.exactCount, time)}`,
+      summary,
+      details: [
+        ...(result.partialCount ? [`${result.partialCount} more look similar but have unconfirmed fields. These do not count toward a price label; each linked partial names its unconfirmed fields.`] : []),
+        `Linked asking prices ${euro(Math.min(...prices))}–${euro(Math.max(...prices))}. This car ${euro(result.targetEur)}.`,
+        ...matchingLimits(result.bounds), ...sampleLimits(assessment, result.unknownFactCount),
+      ],
+      comparables: comparableRows(result.comparables),
     };
   }
   const direction = result.deltaPercent < 0 ? 'below' : 'above';
@@ -208,11 +257,8 @@ function priceSection(view: PriceView, time: (ms: number) => string): PriceSecti
     heading: LABELS[result.label].text,
     scope: `Compared with this search · ${scopeLine(assessment, result.matchCount, time)}`,
     summary: details[0] ?? '',
-    details: [...details.slice(1), ...sampleLimits(assessment, result.unknownFactCount)],
-    comparables: result.comparables.map((comparable) => ({
-      url: comparable.url,
-      label: `${euro(comparable.priceEur)} · ${comparable.year} · ${thousands(comparable.mileageKm)} km`,
-    })),
+    details: [...details.slice(1), ...matchingLimits(result.bounds), ...sampleLimits(assessment, result.unknownFactCount)],
+    comparables: comparableRows(result.comparables),
   };
 }
 

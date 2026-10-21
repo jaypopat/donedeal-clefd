@@ -161,7 +161,8 @@ const RULES: Rule[] = [
   },
   (input) => {
     const claim = input.claims.transmission_statement;
-    const listed = input.facts.transmission;
+    const listed = input.facts.titleEvidence.recovered.includes('transmission') || input.facts.searchEvidence.includes('transmission')
+      ? null : input.facts.transmission;
     const claimed = claim ? claimedTransmission(claim.excerpt) : null;
     if (!claim || !listed || !claimed || claimed === listed) return null;
     const value = listed === 'manual' ? 'Manual' : 'Automatic';

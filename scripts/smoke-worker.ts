@@ -35,6 +35,9 @@ function listing(id: number, eur: number, km: number) {
     sellerType: 'dealer',
     engineLitres: 1.6,
     damageMentioned: false,
+    variant: { kind: 'unmarked', source: 'title' },
+    titleEvidence: { recovered: [], conflicts: [] },
+    searchEvidence: [],
   });
 }
 

@@ -29,6 +29,25 @@ describe('detail page', () => {
     expect(detail?.text).not.toContain('Send a deposit');
   });
 
+  test('uses the shared resolver for trim, title gearbox conflicts, and description damage', () => {
+    const listing = parseListingHref(AQUA_URL);
+    if (!listing) throw new Error('bad listing');
+    const observe = (header: string, description: string, trim: string) => observeDetail(documentFrom(
+      fixtureText('detail-price.html') + nextDataScript({ props: { pageProps: {
+        id: listing.id, header, description, priceEuro: 11000, sellerType: 'PRIVATE',
+        displayAttributes: [
+          { name: 'make', value: 'Toyota' }, { name: 'model', value: 'Aqua' },
+          { name: 'transmission', value: 'Manual' }, { name: 'trimCodeDescription', value: trim },
+        ],
+      } } }), AQUA_URL,
+    ), listing);
+    expect(observe('Toyota Aqua Automatic', 'Sold for parts only.', 'Gsports')?.facts).toMatchObject({
+      variant: { kind: 'marked', code: 'gs', source: 'trim' }, transmission: 'manual',
+      titleEvidence: { recovered: [], conflicts: ['transmission'] }, damageMentioned: true, sellerType: 'private',
+    });
+    expect(observe('Toyota Aqua Gsports', 'Viewing available.', 'GR Sport')?.facts.variant).toEqual({ kind: 'ambiguous' });
+  });
+
   test('reads named vehicle attributes, seller type and the cash price', () => {
     expect<unknown>(detailPage(AQUA_URL)?.facts).toEqual({
       listingId: '42864633',
@@ -43,6 +62,9 @@ describe('detail page', () => {
       sellerType: 'dealer',
       engineLitres: 1.5,
       damageMentioned: false,
+      variant: { kind: 'unmarked', source: 'title' },
+      titleEvidence: { recovered: [], conflicts: [] },
+      searchEvidence: [],
     });
   });
 

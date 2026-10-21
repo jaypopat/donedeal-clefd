@@ -1,0 +1,99 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`assessment request contract pins the canonical material registry and matching policy together 1`] = `
+{
+  "models": {
+    "aqua": {
+      "make": "Toyota",
+      "model": "Aqua",
+    },
+    "golf": {
+      "make": "Volkswagen",
+      "model": "Golf",
+    },
+    "polo": {
+      "make": "Volkswagen",
+      "model": "Polo",
+    },
+  },
+  "variants": [
+    {
+      "code": "gti",
+      "markers": [
+        "/\\bgti\\b/i",
+        "/\\bclubsport\\b/i",
+      ],
+      "models": [
+        "golf",
+        "polo",
+      ],
+      "name": "GTI",
+    },
+    {
+      "code": "gtd",
+      "markers": [
+        "/\\bgtd\\b/i",
+      ],
+      "models": [
+        "golf",
+      ],
+      "name": "GTD",
+    },
+    {
+      "code": "gte",
+      "markers": [
+        "/\\bgte\\b/i",
+      ],
+      "models": [
+        "golf",
+      ],
+      "name": "GTE",
+    },
+    {
+      "code": "r",
+      "markers": [
+        "/\\bgolf[\\s-]+r\\b(?![\\s-]*line)/i",
+        "/^r$/i",
+        "/\\br32\\b/i",
+      ],
+      "models": [
+        "golf",
+      ],
+      "name": "R",
+    },
+    {
+      "code": "r_line",
+      "markers": [
+        "/\\br[\\s-]*line\\b/i",
+      ],
+      "models": [
+        "golf",
+      ],
+      "name": "R-Line",
+    },
+    {
+      "code": "gs",
+      "markers": [
+        "/\\bg['\\u2019]?s\\b/i",
+        "/\\bg[\\s-]?sports?\\b/i",
+        "/\\bgsports?\\b/i",
+      ],
+      "models": [
+        "aqua",
+      ],
+      "name": "G's / Gsports",
+    },
+    {
+      "code": "gr_sport",
+      "markers": [
+        "/\\bgr[\\s-]*sport\\b/i",
+      ],
+      "models": [
+        "aqua",
+      ],
+      "name": "GR Sport",
+    },
+  ],
+  "version": "pricing.2026-10-21.1",
+}
+`;

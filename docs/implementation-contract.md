@@ -4,7 +4,7 @@
 
 Two independent sketches and a third-model judge agreed on page-owned DOM state, background-owned transport and storage, and Worker-owned assessment. Use the Codex sketch's explicit result identities and clear generations. Use the Claude sketch's Bun tests and local-only development Worker. Keep all batches at 20 targets or fewer.
 
-The content script submits an observation and receives two independent branches. Price can be ready, insufficient, or unavailable. Warnings can be checked, limited by coverage, or unavailable. The UI must never interpret a failed check as a clean result. Derive types from runtime schemas. Keep core calculations and display policy pure.
+The content script submits an observation and receives two independent branches. Price can be ready, a neutral reference, insufficient, or unavailable. Warnings can be checked, limited by coverage, or unavailable. The UI must never interpret a failed check as a clean result. Derive types from runtime schemas. Keep core calculations and display policy pure.
 
 ## Ownership
 

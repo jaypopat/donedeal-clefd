@@ -41,7 +41,7 @@ function priceFor(model: SearchModel, id: string, overrides: Partial<PriceDelive
     price: {
       kind: 'assessed',
       assessment: {
-        result: { kind: 'insufficient', reason: { code: 'too_few_matches' }, matchCount: 2, unknownFactCount: 0 },
+        result: { kind: 'insufficient', reason: { code: 'no_close_matches' }, unknownFactCount: 0 },
         scope: 'this_search',
         observedAt: NOW,
         sampleSize: model.order.length,

@@ -19,6 +19,65 @@ function cardHtml(path: string, title: string, price: string, meta: string[]): s
 }
 
 describe('search cards', () => {
+  test('ID-joined promoted copies keep structured facts and prefer the organic DOM binding', () => {
+    const url = 'https://www.donedeal.ie/cars/Toyota/Aqua?transmission=Automatic';
+    const location = new URL(url);
+    const route = classifyPage(location);
+    if (route.kind !== 'search') throw new Error('not a search');
+    const nextData = {
+      query: { section: ['cars', 'Toyota', 'Aqua'], transmission: 'Automatic' },
+      props: { pageProps: {
+        initialMakeModels: [{ make: 'Toyota', model: ['Aqua'] }],
+        ads: [{ id: 50000001, seller: { type: 'PRIVATE' }, mileageInKm: 95000, priceInfo: { priceInEuro: 10500 } }],
+      } },
+    };
+    const promoted = cardHtml('/cars-for-sale/aqua/50000001?campaign=9', 'Toyota Aqua', '', ['2016', '1.5 Petrol Hybrid']);
+    const organic = cardHtml('/cars-for-sale/aqua/50000001', 'Toyota Aqua', '€10,500', ['2016', '1.5 Petrol Hybrid']);
+    const read = (html: string) => {
+      const doc = documentFrom(html + nextDataScript(nextData), url);
+      const data = readSearchData({ doc, location, params: route.params, pathSegments: route.pathSegments });
+      return observeCards(doc, data);
+    };
+    expect(read(promoted)[0]?.facts).toMatchObject({
+      make: 'Toyota', model: 'Aqua', transmission: 'automatic', sellerType: 'private',
+      price: { kind: 'cash', eur: 10500 }, mileage: { value: 95000, unit: 'km' },
+      searchEvidence: ['make', 'model', 'transmission'],
+    });
+    for (const html of [promoted + organic, organic + promoted]) {
+      const cards = read(html);
+      expect(cards).toHaveLength(1);
+      expect(cards[0]?.element.querySelector('a')?.getAttribute('href')).toBe('/cars-for-sale/aqua/50000001');
+      expect(cards[0]?.facts.sellerType).toBe('private');
+    }
+  });
+
+  test('absent promoted listings recover only explicitly corroborated identity and title gearbox', () => {
+    const url = 'https://www.donedeal.ie/cars/Volkswagen/Golf?transmission=Manual&fuelType=Diesel&sellerType=pro';
+    const location = new URL(url);
+    const route = classifyPage(location);
+    if (route.kind !== 'search') throw new Error('not a search');
+    const doc = documentFrom(
+      cardHtml('/cars-for-sale/golf/50000002?campaign=9', 'VW Golf DSG', '€15,000', ['2018', '90,000 km']) +
+      nextDataScript({ query: { section: ['cars', 'Volkswagen', 'Golf'], transmission: 'Manual', fuelType: 'Diesel', sellerType: 'pro' },
+        props: { pageProps: { initialMakeModels: [{ make: 'Volkswagen', model: ['Golf'] }], ads: [] } } }), url,
+    );
+    const data = readSearchData({ doc, location, params: route.params, pathSegments: route.pathSegments });
+    expect(observeCards(doc, data)[0]?.facts).toMatchObject({
+      make: 'Volkswagen', model: 'Golf', transmission: 'automatic', fuel: null, sellerType: null,
+      titleEvidence: { recovered: ['make', 'model', 'transmission'], conflicts: [] }, searchEvidence: [],
+    });
+  });
+
+  test('verified manual search plus an automatic title preserves the contradiction', () => {
+    const { cards } = searchPage('https://www.donedeal.ie/cars/Toyota/Aqua?transmission=Manual', {
+      query: { section: ['cars', 'Toyota', 'Aqua'], transmission: 'Manual' },
+      props: { pageProps: { initialMakeModels: [{ make: 'Toyota', model: ['Aqua'] }], ads: [{ id: 42864633 }] } },
+    });
+    expect(cards.find((card) => card.facts.listingId === '42864633')?.facts).toMatchObject({
+      transmission: 'manual', titleEvidence: { recovered: [], conflicts: ['transmission'] },
+    });
+  });
+
   test('enumerates every rendered card, including promoted cards absent from page data', () => {
     const { cards } = searchPage('https://www.donedeal.ie/cars?area=Dublin', fixtureJson('search-next-data.json'));
     expect(cards.map((card) => String(card.facts.listingId))).toEqual(['37707120', '41839611', '42928524', '42864633']);
@@ -56,7 +115,8 @@ describe('search cards', () => {
       sellerType: 'dealer',
       make: null,
       model: null,
-      transmission: null,
+      transmission: 'automatic',
+      titleEvidence: { recovered: ['transmission'], conflicts: [] },
     });
   });
 

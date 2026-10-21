@@ -12,7 +12,7 @@ import type {
 } from '../messages';
 import { PageMessageSchema, PopupRequestSchema } from '../messages';
 import type { Cache, PriceEntry } from './cache';
-import { factsAgree, findPrice, findWarning, freshDetailWarning, priceKey, warningKey } from './cache';
+import { samePriceIdentity, findPrice, findWarning, freshDetailWarning, priceKey, warningKey } from './cache';
 import type { ContextSnapshot, DocId, PriceJob, SchedulerDeps, WarningJob } from './scheduler';
 import { createScheduler } from './scheduler';
 import type { PopupState, Settings } from './settings';
@@ -238,7 +238,7 @@ export function createBackground(deps: BackgroundDeps) {
     const opening = await deps.store.findOpening(sync.facts.listingId, tabs);
     if (!opening) return { kind: 'no_search_context' };
     const entry = findPrice(cache, priceKey(opening), deps.now());
-    if (!entry || !factsAgree(entry.facts, sync.facts)) return { kind: 'no_search_context' };
+    if (!entry || !samePriceIdentity(entry.facts, sync.facts)) return { kind: 'no_search_context' };
     return { kind: 'assessed', assessment: { ...entry.assessment, scope: 'originating_search' } };
   }
 

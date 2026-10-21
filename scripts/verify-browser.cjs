@@ -158,8 +158,14 @@ async function main() {
     data.query.sort = 'price';
     document.querySelector('#__NEXT_DATA__').textContent = JSON.stringify(data);
   });
-  await page.locator('tyrekick-badges').first().getByRole('button', { name: /Price: Not enough data/ }).waitFor();
-  check('SPA search changes remove old price labels and keep unknown facts unknown');
+  await page.locator('tyrekick-badges').first().getByRole('button', { name: /Price: 6 similar cars, no price label/ }).waitFor();
+  await trigger.click();
+  assert.match(await dialog.textContent(), /transmission unconfirmed/);
+  assert.match(await dialog.textContent(), /Unmarked does not confirm a base trim/);
+  assert.equal(await dialog.getByRole('link').count(), 5);
+  assert.doesNotMatch(await dialog.textContent(), /Great price|Typical price|Expensive/);
+  await page.keyboard.press('Escape');
+  check('SPA search changes remove old price labels and show linked neutral references with unconfirmed gearbox');
   await control({ delayMs: 0, fail: true });
   await page.evaluate(() => {
     document.querySelector('h3 a').textContent = 'Golf payment question';
@@ -186,7 +192,7 @@ async function main() {
   assert.equal((await stats()).requests, pausedCount);
   await control({ delayMs: 0, fail: false });
   await popup.getByRole('button', { name: 'Resume analysis' }).click();
-  await page.locator('tyrekick-badges').first().getByRole('button', { name: /Price: Not enough data/ }).waitFor();
+  await page.locator('tyrekick-badges').first().getByRole('button', { name: /Price: 6 similar cars, no price label/ }).waitFor();
   check('pause hides signals, clear rejects late results and removes stored data, resume restarts analysis');
   detailDescription = 'Ordinary listing text. '.repeat(250) + 'Pay a €500 deposit before viewing.';
   await page.goto(detailUrl);

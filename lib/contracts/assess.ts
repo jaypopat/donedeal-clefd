@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ASSESS_SCHEMA_VERSION, LIMITS, POLICY } from './versions';
+import { ASSESS_SCHEMA_VERSION, LIMITS, MIN_PRICE_MATCHES, POLICY } from './versions';
 import {
   ContentFpSchema,
   ContextFpSchema,
@@ -8,8 +8,10 @@ import {
   ListingIdSchema,
   ListingUrlSchema,
   TargetFpSchema,
+  listingIdOfUrl,
 } from './ids';
-import { CoverageSchema, ListingFactsSchema, ListingTextSchema } from './listing';
+import { CoverageSchema, ListingFactsSchema, ListingTextSchema, SearchFieldSchema, TitleFieldSchema } from './listing';
+import { VariantCodeSchema } from './variants';
 
 export const PolicySchema = z.strictObject({
   pricing: z.literal(POLICY.pricing),
@@ -112,9 +114,9 @@ export const InsufficientReasonSchema = z.discriminatedUnion('code', [
     code: z.literal('unknown_facts'),
     fields: z.tuple([EssentialFieldSchema], EssentialFieldSchema),
   }),
-  z.strictObject({ code: z.literal('too_few_matches') }),
-  z.strictObject({ code: z.literal('dispersed') }),
-  z.strictObject({ code: z.literal('unstable') }),
+  z.strictObject({ code: z.literal('variant_uncertain') }),
+  z.strictObject({ code: z.literal('conflicting_facts'), fields: z.tuple([TitleFieldSchema], TitleFieldSchema) }),
+  z.strictObject({ code: z.literal('no_close_matches') }),
 ]);
 export type InsufficientReason = z.infer<typeof InsufficientReasonSchema>;
 
@@ -122,6 +124,28 @@ export const PriceLabelSchema = z.enum(['great', 'typical', 'expensive']);
 export type PriceLabel = z.infer<typeof PriceLabelSchema>;
 
 const Eur = z.int().min(0).max(5_000_000);
+export const PartialFieldSchema = EssentialFieldSchema.extract(['transmission', 'sellerType']);
+export type PartialField = z.infer<typeof PartialFieldSchema>;
+
+export const MatchBoundsSchema = z.strictObject({
+  variant: z.discriminatedUnion('kind', [
+    z.strictObject({
+      kind: z.literal('separated'),
+      codes: z.array(VariantCodeSchema).min(1),
+      target: z.discriminatedUnion('kind', [
+        z.strictObject({ kind: z.literal('marked'), code: VariantCodeSchema }),
+        z.strictObject({ kind: z.literal('unmarked') }),
+      ]),
+    }),
+    z.strictObject({ kind: z.literal('not_separated') }),
+  ]),
+  targetFromTitle: z.array(TitleFieldSchema).max(3),
+  targetFromSearch: z.array(SearchFieldSchema).max(5),
+  targetConflicts: z.array(TitleFieldSchema).max(3),
+  matchesFromTitle: z.int().min(0),
+  matchesFromSearch: z.int().min(0),
+});
+export type MatchBounds = z.infer<typeof MatchBoundsSchema>;
 
 export const ComparableSchema = z.strictObject({
   listingId: ListingIdSchema,
@@ -129,7 +153,9 @@ export const ComparableSchema = z.strictObject({
   priceEur: Eur,
   year: z.int(),
   mileageKm: z.int().min(0),
-});
+  variant: VariantCodeSchema.nullable(),
+  unconfirmed: z.array(PartialFieldSchema).max(2),
+}).refine((comparable) => comparable.listingId === listingIdOfUrl(comparable.url), { message: 'comparable URL and id disagree' });
 export type Comparable = z.infer<typeof ComparableSchema>;
 
 export const PriceReadySchema = z.strictObject({
@@ -140,24 +166,42 @@ export const PriceReadySchema = z.strictObject({
   lowerQuartileEur: Eur,
   upperQuartileEur: Eur,
   deltaPercent: z.number().min(-100).max(10_000),
-  matchCount: z.int().min(1),
+  matchCount: z.int().min(MIN_PRICE_MATCHES),
   unknownFactCount: z.int().min(0),
   comparables: z.array(ComparableSchema).max(LIMITS.maxComparables),
+  bounds: MatchBoundsSchema,
+}).refine((result) => result.bounds.targetConflicts.length === 0 && result.comparables.every((comparable) => comparable.unconfirmed.length === 0), {
+  message: 'labelled prices require confirmed, conflict-free matches',
 });
+
+export const PriceReferenceSchema = z.strictObject({
+  kind: z.literal('reference'),
+  why: z.enum(['few_matches', 'dispersed', 'unstable']),
+  targetEur: Eur,
+  exactCount: z.int().min(0),
+  partialCount: z.int().min(0),
+  unknownFactCount: z.int().min(0),
+  comparables: z.array(ComparableSchema).min(1).max(LIMITS.maxComparables),
+  bounds: MatchBoundsSchema,
+}).refine((result) =>
+  (result.why === 'few_matches' ? result.exactCount < MIN_PRICE_MATCHES : result.exactCount >= MIN_PRICE_MATCHES) &&
+  result.exactCount + result.partialCount >= result.comparables.length &&
+  result.comparables.filter((comparable) => comparable.unconfirmed.length === 0).length <= result.exactCount &&
+  result.comparables.filter((comparable) => comparable.unconfirmed.length > 0).length <= result.partialCount,
+  { message: 'reference counts disagree with comparables or reason' });
 
 export const PriceInsufficientSchema = z.strictObject({
   kind: z.literal('insufficient'),
   reason: InsufficientReasonSchema,
-  matchCount: z.int().min(0),
   unknownFactCount: z.int().min(0),
 });
 
 const BranchUnavailableSchema = z.strictObject({ kind: z.literal('unavailable'), error: BranchErrorSchema });
 
-export const SettledPriceResultSchema = z.discriminatedUnion('kind', [PriceReadySchema, PriceInsufficientSchema]);
+export const SettledPriceResultSchema = z.discriminatedUnion('kind', [PriceReadySchema, PriceReferenceSchema, PriceInsufficientSchema]);
 export type SettledPriceResult = z.infer<typeof SettledPriceResultSchema>;
 
-export const PriceResultSchema = z.discriminatedUnion('kind', [PriceReadySchema, PriceInsufficientSchema, BranchUnavailableSchema]);
+export const PriceResultSchema = z.discriminatedUnion('kind', [PriceReadySchema, PriceReferenceSchema, PriceInsufficientSchema, BranchUnavailableSchema]);
 export type PriceResult = z.infer<typeof PriceResultSchema>;
 
 export const ReasonCodeSchema = z.enum([

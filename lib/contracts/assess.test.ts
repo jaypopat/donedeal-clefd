@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { AssessRequestSchema, FindingSchema } from './assess';
+import { AssessRequestSchema, FindingSchema, PriceResultSchema } from './assess';
 import { ASSESS_SCHEMA_VERSION, POLICY } from './versions';
 import { ListingFactsSchema } from './listing';
 import { facts } from '../../tests/support/listings';
 import { redact } from '../privacy/redact';
+import { CATALOG_MODELS, VARIANTS, variantsFor } from './variants';
+import { PRICING_POLICY_VERSION } from './versions';
+import { assessPrice } from '../../server/src/pricing';
 
 const NOW = 1_792_000_000_000;
 
@@ -31,6 +34,49 @@ function issues(input: unknown): string[] {
 }
 
 describe('assessment request contract', () => {
+  test('the result boundary rejects labels supported by partials, conflicts or fewer than five matches', () => {
+    const target = facts({ id: '40000001' });
+    const candidates = [17000, 17500, 18000, 18500, 19000, 19500].map((eur, index) => facts({ id: String(40000002 + index), eur }));
+    const ready = assessPrice({ target, candidates });
+    if (ready.kind !== 'ready') throw new Error('expected ready');
+    expect(PriceResultSchema.safeParse(ready).success).toBe(true);
+    expect(PriceResultSchema.safeParse({ ...ready, matchCount: 4 }).success).toBe(false);
+    expect(PriceResultSchema.safeParse({ ...ready, comparables: ready.comparables.map((comparable) => ({ ...comparable, unconfirmed: ['transmission'] })) }).success).toBe(false);
+    expect(PriceResultSchema.safeParse({ ...ready, bounds: { ...ready.bounds, targetConflicts: ['transmission'] } }).success).toBe(false);
+    const reference = assessPrice({ target, candidates: candidates.slice(0, 1) });
+    expect(PriceResultSchema.safeParse({ ...reference, label: 'typical' }).success).toBe(false);
+    expect(PriceResultSchema.safeParse({ ...reference, exactCount: 5 }).success).toBe(false);
+    expect(PriceResultSchema.safeParse({ ...reference, comparables: [] }).success).toBe(false);
+  });
+
+  test('requires new identity evidence without accepting old schema defaults', () => {
+    const listing = facts({ id: '40000001' });
+    const { variant, titleEvidence, searchEvidence, ...legacy } = listing;
+    expect(ListingFactsSchema.safeParse(legacy).success).toBe(false);
+    expect(issues(request({ schemaVersion: 'tyrekick.assess.v1' })).length).toBeGreaterThan(0);
+    expect(ListingFactsSchema.safeParse({ ...listing, variant: { kind: 'marked', code: 'gs', source: 'title' } }).success).toBe(false);
+    expect(ListingFactsSchema.safeParse({ ...listing, variant: { kind: 'not_catalogued' } }).success).toBe(false);
+    expect(ListingFactsSchema.safeParse({ ...listing, make: null }).success).toBe(false);
+  });
+
+  test('enforces known, unique and disjoint evidence fields', () => {
+    const listing = facts({ id: '40000001' });
+    for (const titleEvidence of [
+      { recovered: ['transmission', 'transmission'], conflicts: [] },
+      { recovered: ['model', 'make'], conflicts: [] },
+      { recovered: ['transmission'], conflicts: ['transmission'] },
+    ]) expect(ListingFactsSchema.safeParse({ ...listing, titleEvidence }).success).toBe(false);
+    expect(ListingFactsSchema.safeParse({ ...listing, transmission: null, titleEvidence: { recovered: ['transmission'], conflicts: [] } }).success).toBe(false);
+    expect(ListingFactsSchema.safeParse({ ...listing, titleEvidence: { recovered: ['transmission'], conflicts: [] }, searchEvidence: ['transmission'] }).success).toBe(false);
+    expect(ListingFactsSchema.safeParse({ ...listing, fuel: null, searchEvidence: ['fuel'] }).success).toBe(false);
+  });
+
+  test('pins the canonical material registry and matching policy together', () => {
+    expect({ version: PRICING_POLICY_VERSION, models: CATALOG_MODELS, variants: VARIANTS.map(({ code, name, models, markers }) => ({ code, name, models, markers: markers.map(String) })) }).toMatchSnapshot();
+    expect(variantsFor('VW', 'Golf')).toEqual(['gti', 'gtd', 'gte', 'r', 'r_line']);
+    expect(variantsFor('Toyota', 'Aqua')).toEqual(['gs', 'gr_sport']);
+  });
+
   test('accepts a well-formed request', () => {
     expect(issues(request())).toEqual([]);
   });

@@ -1,8 +1,9 @@
 export const ASSESS_SCHEMA_VERSION = 'tyrekick.assess.v2';
-export const PRICING_POLICY_VERSION = 'pricing.2026-10-20.1';
+export const PRICING_POLICY_VERSION = 'pricing.2026-10-21.1';
 export const WARNING_POLICY_VERSION = 'warnings.2026-10-21.2';
 export const PRIVACY_POLICY_VERSION = 'privacy.2026-10-21.1';
 export const CONSENT_VERSION = 'consent.2026-10-20.1';
+export const MIN_PRICE_MATCHES = 5;
 
 export const POLICY = {
   pricing: PRICING_POLICY_VERSION,
