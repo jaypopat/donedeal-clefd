@@ -4,12 +4,51 @@ import { CATALOG_MODELS, canonicalMake, markedVariants, variantsFor } from '../c
 type Identity = Pick<ListingFacts, 'make' | 'model' | 'transmission' | 'variant' | 'titleEvidence'>;
 
 const MAKE_ALIASES: Record<string, readonly string[]> = {
+  audi: ['audi'],
+  bmw: ['bmw'],
+  citroen: ['citroen', 'citroën'],
+  cupra: ['cupra'],
+  dacia: ['dacia'],
+  fiat: ['fiat'],
+  ford: ['ford'],
+  honda: ['honda'],
+  hyundai: ['hyundai'],
+  jaguar: ['jaguar'],
+  jeep: ['jeep'],
+  kia: ['kia'],
+  'land rover': ['land rover', 'range rover'],
+  lexus: ['lexus'],
+  mazda: ['mazda'],
+  mg: ['mg'],
+  mini: ['mini'],
+  mitsubishi: ['mitsubishi'],
+  nissan: ['nissan'],
+  opel: ['opel'],
+  peugeot: ['peugeot'],
+  porsche: ['porsche'],
+  renault: ['renault'],
+  seat: ['seat'],
+  skoda: ['skoda', 'škoda'],
+  subaru: ['subaru'],
+  suzuki: ['suzuki'],
+  tesla: ['tesla'],
+  toyota: ['toyota'],
+  vauxhall: ['vauxhall'],
+  volvo: ['volvo'],
   volkswagen: ['volkswagen', 'vw'],
   'mercedes-benz': ['mercedes benz', 'mercedes', 'merc'],
 };
 
 function words(text: string): string {
   return ` ${text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()} `;
+}
+
+function namesContraryMake(title: string, alias: string): boolean {
+  if (['seat', 'mini', 'mg'].includes(alias)) {
+    const beginning = words(title).trim().replace(/^(?:19|20)\d{2}\s+/, '');
+    return beginning === alias || beginning.startsWith(`${alias} `);
+  }
+  return words(title).includes(words(alias));
 }
 
 function namesModel(title: string, identity: { make: string; model: string }): boolean {
@@ -45,6 +84,9 @@ export function readIdentity(input: {
   let { make, model, transmission } = input.listed;
   const recovered: TitleField[] = [];
   const conflicts: TitleField[] = [];
+  const listedMake = make ? canonicalMake(make) : null;
+  if (listedMake && Object.entries(MAKE_ALIASES).some(([name, aliases]) =>
+    name !== listedMake && aliases.some((alias) => namesContraryMake(input.title, alias)))) conflicts.push('make');
   const corroborate = input.corroborate;
   const namedModels = Object.values(CATALOG_MODELS).filter((identity) => namesModel(input.title, identity) ||
     make && canonicalMake(make) === canonicalMake(identity.make) && words(input.title).includes(words(identity.model)));

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export function canonicalMake(make: string): string {
-  const name = make.trim().toLowerCase().replace(/\s+/g, ' ');
+  const name = make.normalize('NFKD').replace(/\p{M}/gu, '').trim().toLowerCase().replace(/\s+/g, ' ');
   if (name === 'vw') return 'volkswagen';
   if (name === 'mercedes' || name === 'merc') return 'mercedes-benz';
   return name;
@@ -21,7 +21,7 @@ export const VARIANTS = [
   { code: 'gti', name: 'GTI', models: ['golf', 'polo'], markers: [/\bgti\b/i, /\bclubsport\b/i] },
   { code: 'gtd', name: 'GTD', models: ['golf'], markers: [/\bgtd\b/i] },
   { code: 'gte', name: 'GTE', models: ['golf'], markers: [/\bgte\b/i] },
-  { code: 'r', name: 'R', models: ['golf'], markers: [/\bgolf[\s-]+r\b(?![\s-]*line)/i, /^r$/i, /\br32\b/i] },
+  { code: 'r', name: 'R', models: ['golf'], markers: [/\br\b(?![\s-]*line)/i, /\br32\b/i] },
   { code: 'r_line', name: 'R-Line', models: ['golf'], markers: [/\br[\s-]*line\b/i] },
   { code: 'gs', name: "G's / Gsports", models: ['aqua'], markers: [/\bg['’]?s\b/i, /\bg[\s-]?sports?\b/i, /\bgsports?\b/i] },
   { code: 'gr_sport', name: 'GR Sport', models: ['aqua'], markers: [/\bgr[\s-]*sport\b/i] },

@@ -59,4 +59,27 @@ describe('evidenced vehicle identity', () => {
     expect(identify('Polo')).toMatchObject({ model: 'Golf', titleEvidence: { recovered: [], conflicts: ['model'] } });
     expect(identify('Toyota Aqua')).toMatchObject({ titleEvidence: { conflicts: ['make', 'model'] } });
   });
+
+  test('recognises contrary makes independently of material-variant catalog coverage', () => {
+    for (const title of ['Ford Focus 1.6 Diesel', 'Audi A4', 'BMW 320d', 'Peugeot 308', '2018 SEAT Leon']) {
+      expect(identify(title).titleEvidence.conflicts).toContain('make');
+    }
+  });
+
+  test('ordinary seat and mini-spare features are not contrary makes', () => {
+    for (const title of ['Volkswagen Golf heated driver seat', 'Golf with mini spare wheel']) {
+      expect(identify(title).titleEvidence.conflicts).toEqual([]);
+    }
+  });
+
+  test('make accents do not create a contrary-make claim', () => {
+    for (const example of [{ make: 'Citroën', title: 'Citroen C4' }, { make: 'Skoda', title: 'Škoda Octavia' }]) {
+      expect(readIdentity({ title: example.title, trim: null, corroborate: null, listed: { make: example.make, model: 'Example', transmission: null } }).titleEvidence.conflicts).toEqual([]);
+    }
+  });
+
+  test('recognises the captured Golf R title with engine text between model and variant', () => {
+    expect(identify('Volkswagen Golf 2.0 TSI R 4MOTION 320PS 5 5DR AUTO').variant).toMatchObject({ kind: 'marked', code: 'r' });
+    expect(identify('Volkswagen Golf 2.0 TDI R-Line').variant).toMatchObject({ kind: 'marked', code: 'r_line' });
+  });
 });
