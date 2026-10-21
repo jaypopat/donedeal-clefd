@@ -8,7 +8,6 @@ import { fixtureText } from '../../tests/support/fixtures';
 import { facts } from '../../tests/support/listings';
 import { askedQuestions, clairicAnswers, clairicResult, clefResult, fakeGateway, withSimulatedNullClaims } from '../../tests/support/models';
 import type { ModelGateway } from '../src/models/gateway';
-import { claimedKm } from '../src/warnings/policy';
 import { assessWarning } from '../src/warnings/assess';
 
 const ProviderChecksSchema = z.array(z.object({ case: z.string(), state: z.string(), response: z.object({ result: z.unknown() }) }));
@@ -120,7 +119,7 @@ describe('Clairic evidence from recorded provider responses', () => {
       {
         reason: 'mileage_mismatch',
         evidence: [
-          { kind: 'text', start: 0, end: 28, excerpt: '🚗 The mileage is 120,000 km.' },
+          { kind: 'text', start: 17, end: 27, excerpt: '120,000 km' },
           { kind: 'field', field: 'mileage', value: '68,000 km' },
         ],
       },
@@ -145,7 +144,7 @@ describe('Clairic evidence from recorded provider responses', () => {
     expect(findings(result)).toEqual([
       {
         reason: 'payment_before_viewing',
-        evidence: [{ kind: 'text', start: 7, end: 64, excerpt: 'pay a €500 deposit before you are allowed to view the car' }],
+        evidence: [{ kind: 'text', start: 0, end: Array.from(warning.state).length, excerpt: warning.state }],
       },
     ]);
     expect(warningLabel(findings(result))).toBe('suspicious');
@@ -238,8 +237,6 @@ describe('warning policy', () => {
     const { result } = await run(target(text, { mileage: { value: 63987, unit: 'km' } }, 'card'), gateway);
     expect(findings(result)).toEqual([]);
     expect(calls.map((call) => call.model)).toEqual(['clairic']);
-    expect(claimedKm('40K MILES')).toBe(64374);
-    expect(claimedKm('120.000 km')).toBe(120000);
   });
 
   test('skips model work for card text with nothing checkable', async () => {

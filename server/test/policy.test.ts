@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { redact } from '../../lib/privacy/redact';
 import { facts } from '../../tests/support/listings';
 import { findingsFrom } from '../src/warnings/policy';
 
@@ -13,6 +14,7 @@ describe('payment evidence policy', () => {
     'Pay the deposit before viewing without delay.',
   ])('keeps a payment demand when another proposition is negated: %s', (excerpt) => {
     expect(findingsFrom({
+      text: redact(excerpt),
       facts: facts({ id: '42864633' }),
       claims: { payment_statement: { start: 0, end: Array.from(excerpt).length, excerpt } },
       judgements: { payment_before_viewing: 0.99 },
@@ -35,6 +37,7 @@ describe('payment evidence policy', () => {
     'A viewing is available, no deposit necessary.',
   ])('rejects a true no-payment proposition despite a yes judgement: %s', (excerpt) => {
     expect(findingsFrom({
+      text: redact(excerpt),
       facts: facts({ id: '42864633' }),
       claims: { payment_statement: { start: 0, end: Array.from(excerpt).length, excerpt } },
       judgements: { payment_before_viewing: 0.99 },
@@ -54,6 +57,7 @@ describe('mileage evidence policy', () => {
     'Clutch replaced at 40k mls, timing belt done at 60,000km.',
   ])('does not treat a maintenance distance as the current odometer: %s', (excerpt) => {
     expect(findingsFrom({
+      text: redact(excerpt),
       facts: facts({ id: '42864633', mileage: { value: 90000, unit: 'km' } }),
       claims: { mileage_statement: { start: 0, end: Array.from(excerpt).length, excerpt } },
       judgements: {},
@@ -75,6 +79,7 @@ describe('mileage evidence policy', () => {
     'The car has covered 60,000km service done.',
   ])('keeps actual odometer assertions alongside maintenance words: %s', (excerpt) => {
     expect(findingsFrom({
+      text: redact(excerpt),
       facts: facts({ id: '42864633', mileage: { value: 90000, unit: 'km' } }),
       claims: { mileage_statement: { start: 0, end: Array.from(excerpt).length, excerpt } },
       judgements: {},
@@ -94,6 +99,7 @@ describe('mileage evidence policy', () => {
     ['Timing belt done at 40,000km, now on 90,000 km.', 90000],
   ])('compares current distances after units conversion: %s', (excerpt, value) => {
     expect(findingsFrom({
+      text: redact(excerpt),
       facts: facts({ id: '42864633', mileage: { value, unit: 'km' } }),
       claims: { mileage_statement: { start: 0, end: Array.from(excerpt).length, excerpt } },
       judgements: {},

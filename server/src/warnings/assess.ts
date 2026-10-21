@@ -36,7 +36,7 @@ export async function assessWarning(input: {
     if (extraction.rejectedClaims > 0) throw new ModelFailure('model_invalid_output');
     const questions = questionsFor({ facts: target.facts, claims: extraction.claims });
     const judgements = await judge({ gateway, text: target.text, questions, signal, meter });
-    return { kind: 'checked', findings: findingsFrom({ facts: target.facts, claims: extraction.claims, judgements }) };
+    return { kind: 'checked', findings: findingsFrom({ facts: target.facts, text: target.text, claims: extraction.claims, judgements }) };
   } catch (error) {
     if (error instanceof ModelFailure) return { kind: 'unavailable', error: error.code };
     return { kind: 'unavailable', error: 'internal' };

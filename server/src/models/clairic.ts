@@ -37,7 +37,7 @@ const ResultSchema = z.object({
 
 const PAYMENT_CUE = /\b(deposit|pay|paid|payment|transfer|money|cash|revolut|western union|bank)\b|€/i;
 
-function sourceSentence(text: RedactedText, claim: Claim): Claim | 'rejected' {
+function paymentSentence(text: RedactedText, claim: Claim): Claim | 'rejected' {
   const characters = Array.from(text);
   const boundary = (index: number) => /[!?\n]/.test(characters[index] ?? '') ||
     (characters[index] === '.' && !(/\d/.test(characters[index - 1] ?? '') && /\d/.test(characters[index + 1] ?? '')));
@@ -48,14 +48,7 @@ function sourceSentence(text: RedactedText, claim: Claim): Claim | 'rejected' {
   if (end < characters.length) end++;
   while (/\s/.test(characters[start] ?? '') && start < end) start++;
   const excerpt = characters.slice(start, end).join('');
-  return end - start <= LIMITS.maxExcerptCodepoints ? { start, end, excerpt } : 'rejected';
-}
-
-function contextualClaim(text: RedactedText, name: ClaimName, claim: Claim): Claim | 'rejected' {
-  if (name === 'mileage_statement') return sourceSentence(text, claim);
-  if (name !== 'payment_statement' || PAYMENT_CUE.test(claim.excerpt)) return claim;
-  const sentence = sourceSentence(text, claim);
-  return typeof sentence === 'object' && PAYMENT_CUE.test(sentence.excerpt) ? sentence : 'rejected';
+  return end - start <= LIMITS.maxExcerptCodepoints && PAYMENT_CUE.test(excerpt) ? { start, end, excerpt } : 'rejected';
 }
 
 function isClaimName(name: string): name is ClaimName {
@@ -98,7 +91,7 @@ export async function extractClaims(input: {
       throw new ModelFailure('model_invalid_output');
     }
     const verified = verifiedClaim(input.text, result.data.answers[name]);
-    const claim = typeof verified === 'object' ? contextualClaim(input.text, name, verified) : verified;
+    const claim = typeof verified === 'object' && name === 'payment_statement' ? paymentSentence(input.text, verified) : verified;
     if (claim === 'rejected') rejectedClaims += 1;
     else if (claim !== 'absent') claims[name] = claim;
   }

@@ -1,13 +1,15 @@
 import { expect, test } from 'bun:test';
+import { redact } from '../../lib/privacy/redact';
 import { facts } from '../../tests/support/listings';
 import { findingsFrom } from '../src/warnings/policy';
 
 test('only a structured gearbox can produce Listed gearbox evidence while payment checks stay independent', () => {
+  const text = redact('Automatic\nPay a deposit before viewing.');
   const claims = {
     transmission_statement: { start: 0, end: 9, excerpt: 'Automatic' },
-    payment_statement: { start: 10, end: 44, excerpt: 'Pay a deposit before viewing.' },
+    payment_statement: { start: 10, end: Array.from(text).length, excerpt: 'Pay a deposit before viewing.' },
   };
-  const run = (listing: ReturnType<typeof facts>) => findingsFrom({ facts: listing, claims, judgements: { payment_before_viewing: 0.99 } });
+  const run = (listing: ReturnType<typeof facts>) => findingsFrom({ facts: listing, text, claims, judgements: { payment_before_viewing: 0.99 } });
   expect(run(facts({ id: '40000001' })).map((finding) => finding.reason)).toEqual(['payment_before_viewing', 'transmission_mismatch']);
   for (const listing of [
     facts({ id: '40000001', titleEvidence: { recovered: ['transmission'], conflicts: [] } }),

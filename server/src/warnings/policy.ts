@@ -2,7 +2,9 @@ import type { Evidence, Finding, ReasonCode } from '../../../lib/contracts/asses
 import type { Fuel, ListingFacts, Transmission } from '../../../lib/contracts/listing';
 import { mileageKm } from '../../../lib/contracts/listing';
 import { bySeverity } from '../../../lib/contracts/reasons';
+import { codepointSlice } from '../../../lib/contracts/text';
 import { LIMITS } from '../../../lib/contracts/versions';
+import type { RedactedText } from '../../../lib/privacy/redact';
 import type { Claim, ClaimName } from '../models/clairic';
 import type { Judgements, QuestionName } from '../models/clef';
 
@@ -15,6 +17,7 @@ export const WARNING_POLICY = {
 
 type PolicyInput = {
   facts: ListingFacts;
+  text: RedactedText;
   claims: Partial<Record<ClaimName, Claim>>;
   judgements: Judgements;
 };
@@ -57,12 +60,13 @@ function said(input: PolicyInput, question: QuestionName): boolean {
   return (input.judgements[question] ?? 0) >= WARNING_POLICY.judgeYesAt;
 }
 
-export function claimedKm(excerpt: string): number | null {
-  const distances = excerpt.matchAll(/(\d+(?:[.,]\d+)*)\s*(k|thousand)?\s*(kms?|kilomet(?:er|re)s?|mi|miles?|mls)\b/gi);
+export function claimedKm({ claim, text }: { claim: Claim; text: RedactedText }): number | null {
+  const start = codepointSlice(text, 0, claim.start).length;
+  const distances = claim.excerpt.matchAll(/(\d+(?:[.,]\d+)*)\s*(k|thousand)?\s*(kms?|kilomet(?:er|re)s?|mi|miles?|mls)\b/gi);
   for (const match of distances) {
     if (!match[1] || !match[3]) continue;
-    const before = excerpt.slice(0, match.index).split(/[,;.!?\n](?!\d)|\b(?:now|currently|but)\b/i).at(-1) ?? '';
-    const after = excerpt.slice(match.index + match[0].length);
+    const before = text.slice(0, start + match.index).split(/[,;.!?\n](?!\d)|\b(?:now|currently|but)\b/i).at(-1) ?? '';
+    const after = text.slice(start + match.index + match[0].length);
     if (MAINTENANCE_DISTANCE_BEFORE.test(before)) continue;
     if (MAINTENANCE_DISTANCE_AFTER.test(after) && !CURRENT_MILEAGE_BEFORE.test(before)) continue;
     const number = Number(match[1].replace(/[.,](?=\d{3}\b)/g, '').replace(',', '.'));
@@ -134,7 +138,7 @@ const RULES: Rule[] = [
   (input) => {
     const claim = input.claims.mileage_statement;
     const listed = input.facts.mileage;
-    const claimed = claim ? claimedKm(claim.excerpt) : null;
+    const claimed = claim ? claimedKm({ claim, text: input.text }) : null;
     if (!claim || !listed || claimed === null) return null;
     const listedKm = mileageKm(listed);
     const tolerance = Math.max(WARNING_POLICY.mileageToleranceKm, listedKm * WARNING_POLICY.mileageToleranceRatio);
