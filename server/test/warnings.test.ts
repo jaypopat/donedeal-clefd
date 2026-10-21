@@ -42,6 +42,23 @@ function findings(result: WarningResult) {
 }
 
 describe('Clairic evidence from recorded provider responses', () => {
+  test('grounds a fragmented payment claim in its complete source sentence', async () => {
+    const text = 'Viewing not required, send €500 deposit to secure it.';
+    const { gateway } = fakeGateway({
+      clairic: () => clairicResult(text, { payment_statement: 'Viewing not required' }),
+      clef: () => clefResult({ payment_before_viewing: 0.99 }),
+    });
+    const { result } = await run(target(text), gateway);
+    expect(findings(result)).toEqual([{ reason: 'payment_before_viewing', evidence: [{ kind: 'text', start: 0, end: text.length, excerpt: text }] }]);
+  });
+
+  test('rejects a payment claim whose source sentence contains no payment evidence', async () => {
+    const text = 'Viewing is welcome. Full service history.';
+    const { gateway } = fakeGateway({ clairic: () => clairicResult(text, { payment_statement: 'Viewing is welcome' }) });
+    const { result } = await run(target(text), gateway);
+    expect(result).toEqual({ kind: 'unavailable', error: 'model_invalid_output' });
+  });
+
   test('validates spans as codepoint offsets after an emoji', async () => {
     const unicode = providerCase('unicode');
     const { gateway } = fakeGateway({ clairic: () => unicode.response.result, clef: () => clefResult({ payment_before_viewing: 0.0058 }) });

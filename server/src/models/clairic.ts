@@ -10,7 +10,7 @@ export const CLAIM_FIELDS = {
   year_statement: 'Exact phrase stating the year the car was made or first registered',
   fuel_statement: 'Exact phrase stating the fuel or engine type, such as diesel, petrol, TDI or hybrid',
   transmission_statement: 'Exact phrase stating whether the gearbox is manual or automatic',
-  payment_statement: 'Exact sentence about deposits, payment or money transfer, including any condition about viewing',
+  payment_statement: 'Copy the full sentence mentioning a deposit, payment, money or transfer. Include the money request and any viewing condition in the same quote. Do not return a viewing-only fragment. Return null if no payment statement exists.',
   shipping_statement: 'Exact sentence saying the car is abroad, or can only be shipped or delivered rather than viewed',
   service_full_statement: 'Exact phrase claiming a full or complete service history',
   service_gap_statement: 'Exact phrase saying the service history is partial, incomplete, missing or unavailable',
@@ -34,6 +34,23 @@ const ResultSchema = z.object({
   truncated: z.boolean(),
   usage: z.object({ input_tokens: z.int().nonnegative() }),
 });
+
+const PAYMENT_CUE = /\b(deposit|pay|paid|payment|transfer|money|cash|revolut|western union|bank)\b|€/i;
+
+function paymentSentence(text: RedactedText, claim: Claim): Claim | 'rejected' {
+  if (PAYMENT_CUE.test(claim.excerpt)) return claim;
+  const characters = Array.from(text);
+  const boundary = (index: number) => /[!?\n]/.test(characters[index] ?? '') ||
+    (characters[index] === '.' && !(/\d/.test(characters[index - 1] ?? '') && /\d/.test(characters[index + 1] ?? '')));
+  let start = claim.start;
+  let end = claim.end;
+  while (start > 0 && !boundary(start - 1)) start--;
+  while (end < characters.length && !boundary(end)) end++;
+  if (end < characters.length) end++;
+  while (/\s/.test(characters[start] ?? '') && start < end) start++;
+  const excerpt = characters.slice(start, end).join('');
+  return end - start <= LIMITS.maxExcerptCodepoints && PAYMENT_CUE.test(excerpt) ? { start, end, excerpt } : 'rejected';
+}
 
 function isClaimName(name: string): name is ClaimName {
   return Object.hasOwn(CLAIM_FIELDS, name);
@@ -74,7 +91,8 @@ export async function extractClaims(input: {
     if (!Object.hasOwn(result.data.answers, name) || result.data.answers[name] === undefined) {
       throw new ModelFailure('model_invalid_output');
     }
-    const claim = verifiedClaim(input.text, result.data.answers[name]);
+    const verified = verifiedClaim(input.text, result.data.answers[name]);
+    const claim = name === 'payment_statement' && typeof verified === 'object' ? paymentSentence(input.text, verified) : verified;
     if (claim === 'rejected') rejectedClaims += 1;
     else if (claim !== 'absent') claims[name] = claim;
   }

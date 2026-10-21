@@ -54,8 +54,9 @@ for (const [index, entry] of cases.entries()) {
       if (evidence.kind === 'text') assert.equal(codepointSlice(target.text, evidence.start, evidence.end), evidence.excerpt, entry.name);
     }
   }
-  assert.deepEqual(checked.result.findings.map((finding) => finding.reason).sort(), [...entry.expected].sort(), entry.name);
-  checks.push({ name: entry.name, coverage: checked.coverage, reasons: entry.expected });
+  const reasons = checked.result.findings.map((finding) => finding.reason).sort();
+  if (JSON.stringify(reasons) !== JSON.stringify([...entry.expected].sort())) failures.push({ name: entry.name, error: `unexpected findings: ${reasons.join(', ') || 'none'}` });
+  checks.push({ name: entry.name, coverage: checked.coverage, reasons });
 }
 console.log(JSON.stringify({ provider: 'real Workers AI', checks, failures }, null, 2));
 assert.deepEqual(failures, [], 'Some real-model checks were unavailable');
