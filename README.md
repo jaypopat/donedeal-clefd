@@ -34,6 +34,10 @@ You need Bun, desktop Chrome, and a Cloudflare account with Workers AI access. T
 
 Click a badge to see the comparison scope and evidence. Open an ad for a fuller warning check. A direct detail visit has no originating price comparison. The popup provides **Pause analysis** and **Clear local data**. Pause before clearing to keep enabled pages from immediately requesting fresh assessments.
 
+When a price label cannot be supported but relevant loaded listings exist, **N similar** opens their asking prices and links. Unconfirmed details appear beside each affected link. These references do not count toward the five confirmed matches required for a price label. Recognised material variants are separated; unmarked titles and models outside the variant registry carry an explicit limitation.
+
+Long descriptions show **Limited info** and disclose the text-check limit. That result does not claim the full listing was checked.
+
 The extension sends allowlisted vehicle facts and redacted listing text. It does not collect cookies, seller profiles, images, plates, or VINs. Assessments expire locally and share a 200-entry limit. The Worker retains inputs only for the request.
 
 To test pricing without remote inference, add `--local` to `worker:dev`. Model-dependent warnings then report unavailable. Rebuild and reload the extension when changing `WXT_API_BASE`; the configured endpoint must be loopback HTTP.
@@ -53,6 +57,15 @@ With the real Worker running, check pricing, both models, response identities, a
 ```sh
 bun run worker:smoke --extension-origin chrome-extension://YOUR_EXTENSION_ID --port 8791 --require-models
 ```
+
+Run the warning regressions against the same real Worker, or replay sanitised saved searches without networking.
+
+```sh
+bun scripts/smoke-warning-policy.ts --extension-origin chrome-extension://YOUR_EXTENSION_ID --port 8791
+bun scripts/coverage-report.ts
+```
+
+The coverage report prints each loaded listing's parsed facts and result, plus outcome counts. It validates comparison links and variant separation. The saved snapshots are a repeatable development check, not a representative shopper trial.
 
 The browser check installs the built extension in an isolated Chromium profile and replays synthetic DoneDeal pages against a deterministic local fixture Worker. It does not use live inference. Use a separate free port for this check.
 

@@ -17,6 +17,8 @@ const examples: Array<{ name: string; text: string; coverage: WarningTarget['cov
   { name: 'viewing not required', text: 'Viewing not required, send €500 deposit to secure it.', coverage: 'detail', expected: ['payment_before_viewing'] },
   { name: 'no deposit needed', text: 'No deposit needed before viewing.', coverage: 'detail', expected: [] },
   { name: 'service distance', text: 'Timing belt and service done at 60,000km.', coverage: 'detail', expected: [] },
+  { name: 'service interval before current odometer', text: 'Serviced 5,000 km ago, now on 90,000 km.', coverage: 'detail', expected: [] },
+  { name: 'belt distance before current odometer', text: 'Timing belt changed 60,000km, mileage 90,000km.', coverage: 'detail', expected: [] },
   { name: 'odometer miles', text: 'Only 40k mls on the clock.', coverage: 'detail', expected: ['mileage_mismatch'] },
   { name: 'limited detail coverage', text: 'Ordinary listing text. '.repeat(250), coverage: 'detail_partial', expected: [] },
 ];
