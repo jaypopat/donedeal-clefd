@@ -33,6 +33,43 @@ describe('redact', () => {
     expect<unknown>(redact(text)).toBe(text);
   });
 
+  test.each([
+    'BMW 320d 2010 163bhp NCT',
+    'VW Golf 2.0 TDI 140 D 2012 leather',
+    'Audi A4 2.0 TDI 150 d 2014',
+    'BMW 320D2010 163bhp NCT',
+    '2010 BMW 320d, 120,000 km, 163 bhp.',
+    '87,123 km on the clock. 2012 1.6 diesel, €10,495.',
+    'Mileage 52 000 km. 2014, 150 bhp, €5 000.',
+  ])('preserves engine, year and mileage facts: %s', (text) => {
+    expect<unknown>(redact(text)).toBe(text);
+    expect(isRedactedText(text)).toBe(true);
+  });
+
+  test.each([
+    ['161-D-12345', '[reg]'], ['12 KY 999', '[reg]'], ['87-d-1', '[reg]'], ['00c1234', '[reg]'],
+    ['131-D-1', '[reg]'], ['132d12345', '[reg]'], ['182-kE-9999', '[reg]'], ['242 C 12345', '[reg]'],
+    ['ab12 cde', '[reg]'], ['AB12CDE', '[reg]'], ['wvwzzz6rzgy123456', '[vin]'], ['d02 x285', '[eircode]'],
+  ])('removes real identifiers beside preserved vehicle facts: %s', (identifier, expectedIdentifier) => {
+    const text = `BMW 320d 2010 163bhp NCT. Identifier ${identifier}. Mileage 120,000 km.`;
+    const expected = `BMW 320d 2010 163bhp NCT. Identifier ${expectedIdentifier}. Mileage 120,000 km.`;
+    expect<unknown>(redact(text)).toBe(expected);
+    expect(isRedactedText(text)).toBe(false);
+    expect<unknown>(redact(redact(text))).toBe(expected);
+  });
+
+  test.each([
+    '(087) 123 4567', '(087)1234567', '87 123 4567', '87 1234567',
+    '087/1234567', '087/123/4567', '087 123 4567', '0871234567',
+    '086 123 4567', '85 123 4567', '+353 (0)87 123 4567',
+  ])('redacts the whole phone number without leaving a prefix: %s', (number) => {
+    const text = `Call ${number} before viewing. Mileage 87,123 km. Year 2010.`;
+    const expected = 'Call [phone] before viewing. Mileage 87,123 km. Year 2010.';
+    expect<unknown>(redact(text)).toBe(expected);
+    expect(isRedactedText(text)).toBe(false);
+    expect<unknown>(redact(redact(text))).toBe(expected);
+  });
+
   test('is idempotent so the Worker can verify submitted text', () => {
     const samples = [
       'Call 087 123 45678 now',
