@@ -106,6 +106,12 @@ describe('explanations', () => {
     expect(price.scope).toContain('Compared with this search');
   });
 
+  test('a single neutral reference uses singular price wording', () => {
+    const target = facts({ id: '40000001', transmission: null });
+    const { price } = explain(view(priced(assessPrice({ target, candidates: [facts({ id: '40000002', eur: 17000 })] })), checked(suspicious, 'card')), time);
+    expect(price.details.join(' ')).toContain('Linked asking price €17,000. This car €15,000.');
+  });
+
   test('matching bounds disclose marked variants and title versus search evidence', () => {
     const variant = { kind: 'marked', code: 'gti', source: 'trim' } as const;
     const target = facts({ id: '40000001', variant, titleEvidence: { recovered: ['transmission'], conflicts: [] }, searchEvidence: ['make', 'model'] });

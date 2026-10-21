@@ -179,8 +179,8 @@ function matchingLimits(bounds: MatchBounds): string[] {
   if (bounds.targetFromTitle.length) lines.push(`This car's ${list(bounds.targetFromTitle.map((field) => FIELD_NAMES[field]))} information was read from its title.`);
   if (bounds.targetFromSearch.length) lines.push(`This car's ${list(bounds.targetFromSearch.map((field) => FIELD_NAMES[field]))} information comes from the verified search filters.`);
   if (bounds.targetConflicts.length) lines.push(`Conflicting ${list(bounds.targetConflicts.map((field) => FIELD_NAMES[field]))} evidence is unconfirmed and cannot count toward a price label.`);
-  if (bounds.matchesFromTitle) lines.push(`${bounds.matchesFromTitle} similar listings had details read from their titles.`);
-  if (bounds.matchesFromSearch) lines.push(`${bounds.matchesFromSearch} similar listings use verified search filters for some details.`);
+  if (bounds.matchesFromTitle) lines.push(`${bounds.matchesFromTitle} similar listing${bounds.matchesFromTitle === 1 ? '' : 's'} had details read from ${bounds.matchesFromTitle === 1 ? 'its title' : 'their titles'}.`);
+  if (bounds.matchesFromSearch) lines.push(`${bounds.matchesFromSearch} similar listing${bounds.matchesFromSearch === 1 ? ' uses' : 's use'} verified search filters for some details.`);
   return lines;
 }
 
@@ -240,13 +240,16 @@ function priceSection(view: PriceView, time: (ms: number) => string): PriceSecti
         ? `Prices of the ${result.exactCount} close matches vary too widely for a label.`
         : 'A label changes when a match is left out or the matching window changes, so none is shown.';
     const prices = result.comparables.map((comparable) => comparable.priceEur);
+    const low = Math.min(...prices);
+    const high = Math.max(...prices);
+    const priceRange = low === high ? euro(low) : `${euro(low)}–${euro(high)}`;
     return {
       heading: `${result.exactCount + result.partialCount} similar`,
       scope: `Compared with this search · ${scopeLine(assessment, result.exactCount, time)}`,
       summary,
       details: [
         ...(result.partialCount ? [`${result.partialCount} more look similar but have unconfirmed fields. These do not count toward a price label; each linked partial names its unconfirmed fields.`] : []),
-        `Linked asking prices ${euro(Math.min(...prices))}–${euro(Math.max(...prices))}. This car ${euro(result.targetEur)}.`,
+        `Linked asking ${low === high ? 'price' : 'prices'} ${priceRange}. This car ${euro(result.targetEur)}.`,
         ...matchingLimits(result.bounds), ...sampleLimits(assessment, result.unknownFactCount),
       ],
       comparables: comparableRows(result.comparables),
