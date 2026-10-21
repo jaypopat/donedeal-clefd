@@ -94,6 +94,6 @@ exports[`assessment request contract pins the canonical material registry and ma
       "name": "GR Sport",
     },
   ],
-  "version": "pricing.2026-10-21.1",
+  "version": "pricing.2026-10-21.2",
 }
 `;
