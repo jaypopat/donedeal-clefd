@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { classifyPage } from '../lib/donedeal/page';
 import { observeCards, readSearchData } from '../lib/donedeal/search';
-import { LIMITS, POLICY } from '../lib/contracts/versions';
+import { LIMITS, MIN_PRICE_MATCHES, POLICY } from '../lib/contracts/versions';
+import { PriceResultSchema } from '../lib/contracts/assess';
 import { assessPrice } from '../server/src/pricing';
 import { documentFrom, nextDataScript } from '../tests/support/dom';
 
@@ -31,12 +32,17 @@ function report(path: string) {
   const loaded = new Set(candidates.map((candidate) => candidate.listingId));
   const counts: Record<string, number> = {};
   const listings = candidates.map((target) => {
-    const result = assessPrice({ target, candidates });
+    const result = PriceResultSchema.parse(assessPrice({ target, candidates }));
     const outcome = result.kind === 'ready' ? result.label : result.kind === 'insufficient' ? result.reason.code : result.kind;
     counts[outcome] = (counts[outcome] ?? 0) + 1;
-    if (result.kind === 'ready') {
-      if (result.matchCount < 5) throw new Error('A price label has fewer than five matches');
+    if (result.kind === 'ready' && result.matchCount < MIN_PRICE_MATCHES) throw new Error('A price label has too few matches');
+    if (result.kind === 'ready' || result.kind === 'reference') {
       if (result.comparables.some((item) => !loaded.has(item.listingId) || item.listingId === target.listingId)) throw new Error('A comparison is not another loaded listing');
+      for (const comparable of result.comparables) {
+        const other = candidates.find((candidate) => candidate.listingId === comparable.listingId);
+        if (!other || comparable.url !== other.url) throw new Error('Comparison URL disagrees with the loaded listing');
+        if (target.variant.kind !== other.variant.kind || target.variant.kind === 'marked' && other.variant.kind === 'marked' && target.variant.code !== other.variant.code) throw new Error('Material variants were mixed');
+      }
     }
     return { facts: target, result };
   });
