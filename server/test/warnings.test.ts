@@ -67,7 +67,7 @@ describe('Clairic evidence from recorded provider responses', () => {
       {
         reason: 'mileage_mismatch',
         evidence: [
-          { kind: 'text', start: 17, end: 27, excerpt: '120,000 km' },
+          { kind: 'text', start: 0, end: 28, excerpt: '🚗 The mileage is 120,000 km.' },
           { kind: 'field', field: 'mileage', value: '68,000 km' },
         ],
       },
@@ -131,6 +131,13 @@ describe('Clairic evidence from recorded provider responses', () => {
 });
 
 describe('warning policy', () => {
+  test('retains maintenance context when the provider extracts only the distance', async () => {
+    const text = 'Timing belt and service done at 60,000km.';
+    const { gateway } = fakeGateway({ clairic: () => clairicResult(text, { mileage_statement: '60,000km' }) });
+    const { result } = await run(target(text, { mileage: { value: 90000, unit: 'km' } }), gateway);
+    expect(findings(result)).toEqual([]);
+  });
+
   test('accounts for units before reporting a mileage contradiction', async () => {
     const text = '2016 VOLKSWAGEN POLO TSI 1.2 AUTO *ONLY 40K MILES*';
     const { gateway, calls } = fakeGateway({ clairic: () => clairicResult(text, { mileage_statement: '40K MILES' }) });
