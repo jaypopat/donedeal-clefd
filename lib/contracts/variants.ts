@@ -21,8 +21,8 @@ export const VARIANTS = [
   { code: 'gti', name: 'GTI', models: ['golf', 'polo'], markers: [/\bgti\b/i, /\bclubsport\b/i] },
   { code: 'gtd', name: 'GTD', models: ['golf'], markers: [/\bgtd\b/i] },
   { code: 'gte', name: 'GTE', models: ['golf'], markers: [/\bgte\b/i] },
-  { code: 'r', name: 'R', models: ['golf'], markers: [/\br\b(?![\s-]*line)/i, /\br32\b/i] },
-  { code: 'r_line', name: 'R-Line', models: ['golf'], markers: [/\br[\s-]*line\b/i] },
+  { code: 'r', name: 'R', models: ['golf'], markers: [/\br\b(?![\s'’"/-]*line\b)/i, /\br32\b/i] },
+  { code: 'r_line', name: 'R-Line', models: ['golf'], markers: [/\br[\s'’"/-]*line\b/i] },
   { code: 'gs', name: "G's / Gsports", models: ['aqua'], markers: [/\bg['’]?s\b/i, /\bg[\s-]?sports?\b/i, /\bgsports?\b/i] },
   { code: 'gr_sport', name: 'GR Sport', models: ['aqua'], markers: [/\bgr[\s-]*sport\b/i] },
 ] as const satisfies readonly { code: string; name: string; models: readonly (keyof typeof CATALOG_MODELS)[]; markers: readonly RegExp[] }[];

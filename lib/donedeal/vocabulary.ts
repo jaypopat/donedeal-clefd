@@ -76,10 +76,14 @@ export function parseHeadlinePrice(text: string | null): AskingPrice {
 
 const DAMAGE =
   /\b(damaged|accident damage|crashed|spares?\s*(?:or|\/|&|and)\s*repairs?|for parts|parts only|breaking|non[- ]?runner|write[- ]?off|written off|salvage|cat\s?[abns])\b/i;
+const DENIED_DAMAGE_TERM = '(?:damaged|crashed|written\\s+off|write[- ]?off|(?:a\\s+)?cat\\s?[abns])';
+const DENIED_DAMAGE = new RegExp(`\\b(?:never|not)\\s+(?:(?:been|a)\\s+)*${DENIED_DAMAGE_TERM}(?:\\s+(?:or|and)\\s+${DENIED_DAMAGE_TERM})*\\b`, 'gi');
 
 export function mentionsDamage(text: string): boolean {
   const asserted = text
-    .replace(/\b(?:never|not)\s+(?:been\s+)?(?:damaged|crashed|written off)(?:\s+(?:or|and)\s+(?:damaged|crashed|written off))*\b/gi, '')
+    .replace(DENIED_DAMAGE, '')
+    .replace(/\b(?:(?:city|automatic|autonomous|emergency|active)\s+)+(?:braking|breaking)\b/gi, '')
+    .replace(/\b(?:invoices?|receipts?|bills?)\s+for\s+parts(?:\s+(?:and|&)\s+labou?r)?\b/gi, '')
     .replace(/\bno\s+(?:accident\s+damage|history\s+of\s+(?:accident\s+damage|being\s+written\s+off))\b/gi, '');
   return DAMAGE.test(asserted);
 }

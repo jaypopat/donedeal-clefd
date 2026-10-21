@@ -52,7 +52,7 @@ exports[`assessment request contract pins the canonical material registry and ma
     {
       "code": "r",
       "markers": [
-        "/\\br\\b(?![\\s-]*line)/i",
+        "/\\br\\b(?![\\s'\\u2019"/-]*line\\b)/i",
         "/\\br32\\b/i",
       ],
       "models": [
@@ -63,7 +63,7 @@ exports[`assessment request contract pins the canonical material registry and ma
     {
       "code": "r_line",
       "markers": [
-        "/\\br[\\s-]*line\\b/i",
+        "/\\br[\\s'\\u2019"/-]*line\\b/i",
       ],
       "models": [
         "golf",
@@ -93,6 +93,6 @@ exports[`assessment request contract pins the canonical material registry and ma
       "name": "GR Sport",
     },
   ],
-  "version": "pricing.2026-10-21.3",
+  "version": "pricing.2026-10-21.4",
 }
 `;

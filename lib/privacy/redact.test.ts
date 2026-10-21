@@ -3,6 +3,10 @@ import { LIMITS } from '../contracts/versions';
 import { isRedactedText, redact } from './redact';
 
 describe('redact', () => {
+  test('preserves calendar dates while removing slash-separated phone numbers', () => {
+    const text = 'First registered 01/06/2015 in Japan. NCT 05/03/2027. Call 087/1234567.';
+    expect<string>(redact(text)).toBe('First registered 01/06/2015 in Japan. NCT 05/03/2027. Call [phone].');
+  });
   test('removes phone numbers, emails and links', () => {
     const text = redact('Call 087 123 4567 or +353 87 765 4321, or 01-234-5678. Email sam.k@example.ie, see www.example.com/car?id=1');
     expect<unknown>(text).toBe('Call [phone] or [phone], or [phone]. Email [email], see [link]');

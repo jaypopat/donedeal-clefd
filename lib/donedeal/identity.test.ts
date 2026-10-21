@@ -81,5 +81,7 @@ describe('evidenced vehicle identity', () => {
   test('recognises the captured Golf R title with engine text between model and variant', () => {
     expect(identify('Volkswagen Golf 2.0 TSI R 4MOTION 320PS 5 5DR AUTO').variant).toMatchObject({ kind: 'marked', code: 'r' });
     expect(identify('Volkswagen Golf 2.0 TDI R-Line').variant).toMatchObject({ kind: 'marked', code: 'r_line' });
+    expect(identify("VW Golf 1.5 TSI 'R' Line").variant).toMatchObject({ kind: 'marked', code: 'r_line' });
+    expect(identify('VW Golf 1.5 TSI R/Line').variant).toMatchObject({ kind: 'marked', code: 'r_line' });
   });
 });
