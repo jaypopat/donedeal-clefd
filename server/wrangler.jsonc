@@ -1,0 +1,12 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "tyrekick-dev",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "send_metrics": false,
+  // No routes, workers.dev or preview URLs: this Worker is for loopback development only.
+  "workers_dev": false,
+  "preview_urls": false,
+  // Workers AI has no local simulator; inference runs on Cloudflare during `wrangler dev`.
+  "ai": { "binding": "AI", "remote": true }
+}

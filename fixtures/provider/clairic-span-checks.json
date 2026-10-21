@@ -1,0 +1,137 @@
+[
+  {
+    "case": "unicode",
+    "state": "\ud83d\ude97 The mileage is 120,000 km. Viewing is available before payment.",
+    "response": {
+      "result": {
+        "model": "clairic",
+        "answers": {
+          "payment_statement": {
+            "type": "text",
+            "p_null": 0.0030286714900285006,
+            "span": [
+              29,
+              64
+            ],
+            "guess": "Viewing is available before payment",
+            "confidence": 0.870823323726654,
+            "value": "Viewing is available before payment"
+          },
+          "mileage_statement": {
+            "type": "text",
+            "p_null": 0.0006882472080178559,
+            "span": [
+              17,
+              27
+            ],
+            "guess": "120,000 km",
+            "confidence": 0.8944492936134338,
+            "value": "120,000 km"
+          }
+        },
+        "truncated": false,
+        "usage": {
+          "state_tokens": 22,
+          "image_tokens": 0,
+          "schema_tokens": 265,
+          "input_tokens": 309,
+          "output_tokens": 0,
+          "passes": 2
+        }
+      },
+      "success": true,
+      "errors": [],
+      "messages": []
+    }
+  },
+  {
+    "case": "warning",
+    "state": "Please pay a \u20ac500 deposit before you are allowed to view the car.",
+    "response": {
+      "result": {
+        "model": "clairic",
+        "answers": {
+          "payment_statement": {
+            "type": "text",
+            "p_null": 0.0011398297501727939,
+            "span": [
+              7,
+              64
+            ],
+            "guess": "pay a \u20ac500 deposit before you are allowed to view the car",
+            "confidence": 0.3535139262676239,
+            "value": "pay a \u20ac500 deposit before you are allowed to view the car"
+          },
+          "mileage_statement": {
+            "type": "text",
+            "p_null": 0.9999504089355469,
+            "span": [
+              13,
+              17
+            ],
+            "guess": "\u20ac500",
+            "confidence": 0.5482729077339172,
+            "value": null
+          }
+        },
+        "truncated": false,
+        "usage": {
+          "state_tokens": 17,
+          "image_tokens": 0,
+          "schema_tokens": 265,
+          "input_tokens": 299,
+          "output_tokens": 0,
+          "passes": 2
+        }
+      },
+      "success": true,
+      "errors": [],
+      "messages": []
+    }
+  },
+  {
+    "case": "benign",
+    "state": "No deposit needed. Please view the car before making any payment.",
+    "response": {
+      "result": {
+        "model": "clairic",
+        "answers": {
+          "payment_statement": {
+            "type": "text",
+            "p_null": 0.0011750510893762112,
+            "span": [
+              0,
+              17
+            ],
+            "guess": "No deposit needed",
+            "confidence": 0.6559470891952515,
+            "value": "No deposit needed"
+          },
+          "mileage_statement": {
+            "type": "text",
+            "p_null": 0.9998632669448853,
+            "span": [
+              0,
+              2
+            ],
+            "guess": "No",
+            "confidence": 0.44305872917175293,
+            "value": null
+          }
+        },
+        "truncated": false,
+        "usage": {
+          "state_tokens": 13,
+          "image_tokens": 0,
+          "schema_tokens": 265,
+          "input_tokens": 291,
+          "output_tokens": 0,
+          "passes": 2
+        }
+      },
+      "success": true,
+      "errors": [],
+      "messages": []
+    }
+  }
+]

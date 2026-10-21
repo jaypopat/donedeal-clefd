@@ -24,3 +24,9 @@ web-ext.config.ts
 *.njsproj
 *.sln
 *.sw?
+
+# Wrangler local state
+.wrangler
+server/.wrangler
+.dev.vars
+server/.dev.vars

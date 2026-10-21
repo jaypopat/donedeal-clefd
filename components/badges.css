@@ -1,0 +1,28 @@
+:host { color-scheme: light; display: block !important; position: relative !important; z-index: 3 !important; }
+.tyrekick { font: 12px/1.45 system-ui, sans-serif; color: #233b36; padding-top: 6px; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible, a:focus-visible { outline: 3px solid #206d56; outline-offset: 3px; }
+.badge-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; width: fit-content; max-width: 100%; padding: 4px 6px; border: 1px solid #d7e4dd; border-radius: 7px; background: #fff; color: #233b36; text-align: left; }
+.badge-row:hover { border-color: #56796a; }
+.brand { font-weight: 750; font-size: 11px; letter-spacing: -.2px; }
+.badge { border-radius: 4px; padding: 2px 5px; font-weight: 600; }
+.good { color: #175e3c; background: #e5f4e9; }
+.neutral { color: #294f62; background: #eaf2f6; }
+.caution { color: #745000; background: #fff2cd; }
+.danger { color: #922f29; background: #fce9e6; }
+.muted { color: #53645c; background: #f0f3f1; }
+.info { color: #63786b; }
+.explanation { box-sizing: border-box; position: fixed; inset: auto; margin: 0; overflow: auto; overscroll-behavior: contain; padding: 16px; border: 1px solid #c8d8ce; border-radius: 12px; color: #233b36; background: #fff; box-shadow: 0 8px 35px #142b2733; font: 13px/1.5 system-ui, sans-serif; }
+.explanation header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.explanation section { border-top: 1px solid #e7ede9; margin-top: 12px; padding-top: 12px; }
+.explanation h2 { font-size: 15px; margin: 0 0 6px; }
+.explanation h3 { font-size: 13px; margin: 12px 0 5px; }
+.explanation p { margin: 7px 0; }
+.explanation .scope { color: #5c6d64; font-size: 12px; }
+.close { border: 0; background: #f0f3f1; border-radius: 5px; color: #233b36; width: 30px; height: 30px; font-size: 22px; line-height: 1; }
+.explanation ul { margin: 6px 0; padding-left: 18px; }
+.explanation li { margin: 5px 0; }
+.explanation a { color: #176144; text-decoration: underline; }
+.explanation blockquote { margin: 8px 0; border-left: 3px solid #bdccc2; padding-left: 10px; overflow-wrap: anywhere; }
+.next-step { font-weight: 600; }
