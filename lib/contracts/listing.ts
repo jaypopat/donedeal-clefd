@@ -39,8 +39,9 @@ export type Coverage = z.infer<typeof CoverageSchema>;
 
 const DisplayName = z.string().trim().min(1).max(60);
 
-export const TitleFieldSchema = z.enum(['make', 'model', 'transmission']);
+export const TitleFieldSchema = z.enum(['make', 'model', 'transmission', 'year']);
 export type TitleField = z.infer<typeof TitleFieldSchema>;
+export const RecoveredTitleFieldSchema = TitleFieldSchema.exclude(['year']);
 export const SearchFieldSchema = z.enum(['make', 'model', 'fuel', 'transmission', 'sellerType']);
 export type SearchField = z.infer<typeof SearchFieldSchema>;
 export const VariantSchema = z.discriminatedUnion('kind', [
@@ -71,8 +72,8 @@ export const ListingFactsSchema = z
     damageMentioned: z.boolean(),
     variant: VariantSchema,
     titleEvidence: z.strictObject({
-      recovered: z.array(TitleFieldSchema).max(3),
-      conflicts: z.array(TitleFieldSchema).max(3),
+      recovered: z.array(RecoveredTitleFieldSchema).max(3),
+      conflicts: z.array(TitleFieldSchema).max(4),
     }),
     searchEvidence: z.array(SearchFieldSchema).max(5),
   })

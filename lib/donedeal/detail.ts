@@ -63,7 +63,7 @@ export function observeDetail(doc: Document, listing: ListingRef): DetailObserva
   const description = pageProps.description ?? '';
   const identity = readIdentity({
     title: header,
-    listed: { make: attribute('make') || null, model: attribute('model') || null, transmission: parseTransmission(attribute('transmission')) },
+    listed: { make: attribute('make') || null, model: attribute('model') || null, year: parseYear(attribute('year')), transmission: parseTransmission(attribute('transmission')) },
     corroborate: null,
     trim: attribute('trim') || attribute('trimCodeDescription') || null,
   });
@@ -71,7 +71,6 @@ export function observeDetail(doc: Document, listing: ListingRef): DetailObserva
     listingId: listing.id,
     url: listing.url,
     price: detailPrice(pageProps, priceElement?.textContent ?? null),
-    year: parseYear(attribute('year')),
     mileage: parseMileageText(attribute('mileage')),
     ...identity,
     searchEvidence: [],

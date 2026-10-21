@@ -2,8 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import type { Transmission } from '../contracts/listing';
 import { readIdentity } from './identity';
 
-function identify(title: string, model = 'Golf', trim: string | null = null, transmission: Transmission | null = null) {
-  return readIdentity({ title, trim, listed: { make: model === 'Aqua' ? 'Toyota' : 'Volkswagen', model, transmission }, corroborate: null });
+function identify(title: string, model = 'Golf', trim: string | null = null, transmission: Transmission | null = null, year: number | null = 2018) {
+  return readIdentity({ title, trim, listed: { make: model === 'Aqua' ? 'Toyota' : 'Volkswagen', model, transmission, year }, corroborate: null });
 }
 
 describe('evidenced vehicle identity', () => {
@@ -48,10 +48,10 @@ describe('evidenced vehicle identity', () => {
   });
 
   test('recovers make and model only with explicit title corroboration of verified context', () => {
-    const read = (title: string) => readIdentity({ title, trim: null, listed: { make: null, model: null, transmission: null }, corroborate: { make: 'Volkswagen', model: 'Golf' } });
+    const read = (title: string) => readIdentity({ title, trim: null, listed: { make: null, model: null, transmission: null, year: null }, corroborate: { make: 'Volkswagen', model: 'Golf' } });
     expect(read('2018 VW Golf DSG')).toMatchObject({ make: 'Volkswagen', model: 'Golf', transmission: 'automatic', titleEvidence: { recovered: ['make', 'model', 'transmission'], conflicts: [] } });
     for (const title of ['Ford Fiesta', 'Golf', 'VW', 'Volkswagen Golf Polo']) expect(read(title)).toMatchObject({ make: null, model: null });
-    expect(readIdentity({ title: 'VW Golf', trim: null, listed: { make: null, model: null, transmission: null }, corroborate: null })).toMatchObject({ make: null, model: null });
+    expect(readIdentity({ title: 'VW Golf', trim: null, listed: { make: null, model: null, transmission: null, year: null }, corroborate: null })).toMatchObject({ make: null, model: null });
   });
 
   test('a known title identity contradicting structured identity is recorded', () => {
@@ -74,7 +74,7 @@ describe('evidenced vehicle identity', () => {
 
   test('make accents do not create a contrary-make claim', () => {
     for (const example of [{ make: 'Citroën', title: 'Citroen C4' }, { make: 'Skoda', title: 'Škoda Octavia' }]) {
-      expect(readIdentity({ title: example.title, trim: null, corroborate: null, listed: { make: example.make, model: 'Example', transmission: null } }).titleEvidence.conflicts).toEqual([]);
+      expect(readIdentity({ title: example.title, trim: null, corroborate: null, listed: { make: example.make, model: 'Example', transmission: null, year: null } }).titleEvidence.conflicts).toEqual([]);
     }
   });
 
@@ -83,5 +83,27 @@ describe('evidenced vehicle identity', () => {
     expect(identify('Volkswagen Golf 2.0 TDI R-Line').variant).toMatchObject({ kind: 'marked', code: 'r_line' });
     expect(identify("VW Golf 1.5 TSI 'R' Line").variant).toMatchObject({ kind: 'marked', code: 'r_line' });
     expect(identify('VW Golf 1.5 TSI R/Line').variant).toMatchObject({ kind: 'marked', code: 'r_line' });
+  });
+
+  test('one explicit title year can contradict a known year without replacing it', () => {
+    expect(identify('VOKSWAGEN GOLF 1.2 TSI AUTO 2017', 'Golf', null, null, 2015)).toMatchObject({
+      year: 2015, titleEvidence: { recovered: ['transmission'], conflicts: ['year'] },
+    });
+    expect(identify('Golf 2015', 'Golf', null, null, 2015)).toMatchObject({ year: 2015, titleEvidence: { conflicts: [] } });
+    expect(identify('2017 VW Golf 1.2 TSI', 'Golf', null, null, 2015).titleEvidence.conflicts).toEqual(['year']);
+    expect(identify('Golf 2017', 'Golf', null, null, null)).toMatchObject({ year: null, titleEvidence: { recovered: [], conflicts: [] } });
+  });
+
+  test.each([
+    'Golf NCT 2027', 'Golf NCT until 2027', 'Golf 2027 NCT', 'Golf NCT 19/03/2027', 'Golf NCT March 2027',
+    'Golf NCT 03/2027', 'Golf 2027-03-19', 'Golf 19.03.2027', 'Golf 2015 2017',
+    'Golf 2017/2018', 'Golf 151-D-1234', 'Golf 2017-D-1234', 'Golf 2017 km', 'Golf €2017',
+  ])('%s does not invent a vehicle year conflict from a date, ambiguous years or registration', (title) => {
+    expect(identify(title, 'Golf', null, null, 2015)).toMatchObject({ year: 2015, titleEvidence: { recovered: [], conflicts: [] } });
+  });
+
+  test('a vehicle year stays explicit when an NCT date is also present', () => {
+    expect(identify('Golf 2017 NCT 03/2027', 'Golf', null, null, 2015).titleEvidence.conflicts).toEqual(['year']);
+    expect(identify('Golf 2017 NCT 2027', 'Golf', null, null, 2015).titleEvidence.conflicts).toEqual(['year']);
   });
 });

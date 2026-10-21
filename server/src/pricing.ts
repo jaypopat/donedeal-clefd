@@ -38,7 +38,7 @@ function toComparand(facts: ListingFacts): Comparand | null {
   if (facts.damageMentioned || facts.price.kind !== 'cash' || facts.price.eur < PRICE_POLICY.minPlausibleEur) return null;
   const { make, model, fuel, year, mileage, variant } = facts;
   if (!make || !model || !fuel || year === null || !mileage || variant.kind === 'ambiguous') return null;
-  if (facts.titleEvidence.conflicts.some((field) => field === 'make' || field === 'model')) return null;
+  if (facts.titleEvidence.conflicts.some((field) => field === 'make' || field === 'model' || field === 'year')) return null;
   const variantKey = variant.kind === 'marked' ? `marked:${variant.code}` : variant.kind;
   const identity = [catalogKey(make, model), fuel, variantKey].join('|');
   return { facts, eur: facts.price.eur, km: mileageKm(mileage), year, identity };
@@ -162,7 +162,7 @@ export function assessPrice(input: { target: ListingFacts; candidates: readonly 
   const [firstMissing, ...restMissing] = HARD_FIELDS.filter((field) => input.target[field] === null);
   if (firstMissing) return insufficient({ code: 'unknown_facts', fields: [firstMissing, ...restMissing] });
   if (input.target.variant.kind === 'ambiguous') return insufficient({ code: 'variant_uncertain' });
-  const [firstConflict, ...restConflicts] = input.target.titleEvidence.conflicts.filter((field) => field === 'make' || field === 'model');
+  const [firstConflict, ...restConflicts] = input.target.titleEvidence.conflicts.filter((field) => field === 'make' || field === 'model' || field === 'year');
   if (firstConflict) return insufficient({ code: 'conflicting_facts', fields: [firstConflict, ...restConflicts] });
   const target = toComparand(input.target);
   if (!target) return insufficient({ code: 'no_close_matches' });

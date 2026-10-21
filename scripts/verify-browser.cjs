@@ -27,7 +27,9 @@ const script = (data) => `<script type="application/json" id="__NEXT_DATA__">${J
 const shell = (body) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>DoneDeal fixture</title><style>body{font:16px system-ui;background:#f4f6f3;padding:25px}main{max-width:850px}.Card-styled__Container-fixture{border:1px solid #ddd;position:relative;background:white;padding:16px;margin:12px 0;min-height:155px}h3 a::after{content:'';position:absolute;inset:0}ul{display:flex;gap:30px;list-style:none;padding:0}.Price-styled__Price-fixture{font-size:22px;font-weight:bold}</style></head><body><main>${body}</main></body></html>`;
 const searchHtml = () => shell(`<h1>Volkswagen Golf</h1>${prices.map((_, i) => card(i)).join('')}${script(nextData())}`);
 let detailDescription = 'Pay a €500 deposit before viewing. Call 087 123 4567 or email seller@example.com.';
-const detailHtml = () => shell(`<h1>Volkswagen Golf</h1><div class="AdTitleBox-styled__PriceRow-fixture"><div class="AdTitleBox-styled__Price-fixture">€10,000</div></div>${script({ props: { pageProps: { id: 55000001, header: 'Volkswagen Golf', description: detailDescription, priceEuro: 10000, sellerType: 'dealer', displayAttributes: [{ name: 'year', value: '2018' }, { name: 'mileage', value: '90000 km' }, { name: 'make', value: 'Volkswagen' }, { name: 'model', value: 'Golf' }, { name: 'fuelType', value: 'Diesel' }, { name: 'transmission', value: 'Manual' }, { name: 'engine', value: '1.6' }] } } })}`);
+let detailHeader = 'Volkswagen Golf';
+let detailTrim = '';
+const detailHtml = () => shell(`<h1>Volkswagen Golf</h1><div class="AdTitleBox-styled__PriceRow-fixture"><div class="AdTitleBox-styled__Price-fixture">€10,000</div></div>${script({ props: { pageProps: { id: 55000001, header: detailHeader, description: detailDescription, priceEuro: 10000, sellerType: 'dealer', displayAttributes: [{ name: 'year', value: '2018' }, { name: 'mileage', value: '90000 km' }, { name: 'make', value: 'Volkswagen' }, { name: 'model', value: 'Golf' }, { name: 'fuelType', value: 'Diesel' }, { name: 'transmission', value: 'Manual' }, { name: 'engine', value: '1.6' }, { name: 'trim', value: detailTrim }] } } })}`);
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let fixture;
 let context;
@@ -149,8 +151,38 @@ async function main() {
   const direct = await context.newPage();
   await direct.goto(detailUrl);
   await direct.locator('tyrekick-badges').getByRole('button', { name: /Price: Not enough data.*Warnings: Suspicious/ }).waitFor();
+  await direct.locator('tyrekick-badges').getByRole('button').click();
+  assert.match(await direct.getByRole('dialog').textContent(), /There is no saved search for this ad/);
   await direct.close();
   check('new-tab originating price and direct-detail abstention');
+  await page.locator('h3 a').first().evaluate((link) => { link.target = '_self'; });
+  const originalDescription = detailDescription;
+  for (const scenario of [
+    { name: 'variant', header: 'Volkswagen Golf', trim: 'GTI', description: originalDescription },
+    { name: 'year conflict', header: 'Volkswagen Golf 2017', trim: '', description: originalDescription },
+    { name: 'gearbox conflict', header: 'Volkswagen Golf DSG', trim: '', description: originalDescription },
+    { name: 'damage', header: 'Volkswagen Golf', trim: '', description: `Accident damaged. ${originalDescription}` },
+  ]) {
+    detailHeader = scenario.header;
+    detailTrim = scenario.trim;
+    detailDescription = scenario.description;
+    await page.locator('h3 a').first().click();
+    await page.locator('tyrekick-badges').getByRole('button', { name: /Price: Not enough data.*Warnings: Suspicious/ }).waitFor();
+    await page.locator('tyrekick-badges').getByRole('button').click();
+    const explanation = await page.getByRole('dialog').textContent();
+    assert.doesNotMatch(explanation, /There is no saved search|Great price|Typical price|Expensive/);
+    if (scenario.name === 'damage') {
+      assert.match(explanation, /mentions damage or parts/);
+      assert.match(explanation, /from the results you opened this ad from/);
+    } else assert.match(explanation, /saved search comparison no longer applies/);
+    assert.equal(await page.getByRole('dialog').getByRole('link').count(), 0);
+    check(`revealed ${scenario.name} abstains with the correct saved-search explanation and independent warnings`);
+    await page.goBack();
+    await page.locator('tyrekick-badges').first().getByRole('button', { name: /Price: Great price/ }).waitFor();
+  }
+  detailHeader = 'Volkswagen Golf';
+  detailTrim = '';
+  detailDescription = originalDescription;
   await page.evaluate(() => {
     history.pushState({}, '', '/cars/Volkswagen/Golf?sort=price');
     const data = JSON.parse(document.querySelector('#__NEXT_DATA__').textContent);
@@ -204,6 +236,23 @@ async function main() {
   assert.match(limited, /4,000 characters checked/);
   assert.doesNotMatch(limited, /Full listing checked|No warning signs detected/);
   check('long descriptions keep partial coverage through transport, cache and visible explanation');
+  detailDescription = originalDescription;
+  await page.goto(searchUrl);
+  await page.locator('tyrekick-badges').first().getByRole('button', { name: /Price: Great price/ }).waitFor();
+  await page.evaluate(() => {
+    history.pushState({}, '', '/cars/Volkswagen/Golf?sort=price');
+    const data = JSON.parse(document.querySelector('#__NEXT_DATA__').textContent);
+    delete data.query.transmission;
+    data.query.sort = 'price';
+    document.querySelector('#__NEXT_DATA__').textContent = JSON.stringify(data);
+  });
+  await page.locator('tyrekick-badges').first().getByRole('button', { name: /Price: 6 similar cars, no price label/ }).waitFor();
+  await page.locator('h3 a').first().click();
+  await page.locator('tyrekick-badges').getByRole('button', { name: /Price: Not enough data.*Warnings: Suspicious/ }).waitFor();
+  await page.locator('tyrekick-badges').getByRole('button').click();
+  assert.match(await page.getByRole('dialog').textContent(), /saved search comparison no longer applies/);
+  assert.doesNotMatch(await page.getByRole('dialog').textContent(), /There is no saved search/);
+  check('a newly known detail gearbox invalidates the saved partial comparison without claiming a direct visit');
   assert.deepEqual(errors, [], 'No page or React runtime errors.');
   console.log(JSON.stringify({ extensionId, checks: checks.length, fixtureRequests: (await stats()).requests, model: 'deterministic fixture, no live inference' }));
 }

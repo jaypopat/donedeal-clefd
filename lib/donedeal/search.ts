@@ -147,7 +147,7 @@ function observeCard(element: Element, data: SearchData | null): CardObservation
   const filters = member ? data.filters : null;
   const identity = readIdentity({
     title,
-    listed: { make: filters?.make ?? null, model: filters?.model ?? null, transmission: filters?.transmission ?? null },
+    listed: { make: filters?.make ?? null, model: filters?.model ?? null, year: meta.year, transmission: filters?.transmission ?? null },
     corroborate: !member && data ? data.filters : null,
     trim: null,
   });
@@ -165,7 +165,6 @@ function observeCard(element: Element, data: SearchData | null): CardObservation
     listingId: ref.id,
     url: ref.url,
     price,
-    year: meta.year,
     mileage,
     ...identity,
     searchEvidence: searchEvidence.sort(),

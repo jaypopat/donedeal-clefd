@@ -56,7 +56,7 @@ describe('search-relative price', () => {
   test('uncertain variants and known identity contradictions cannot produce labels', () => {
     const candidates = cohort(CLOSE);
     expect(assessPrice({ target: car(15000, { variant: { kind: 'ambiguous' } }), candidates })).toMatchObject({ reason: { code: 'variant_uncertain' } });
-    const contradictory = readIdentity({ title: 'Volkswagen Polo', listed: { make: 'Volkswagen', model: 'Golf', transmission: 'manual' }, corroborate: null, trim: null });
+    const contradictory = readIdentity({ title: 'Volkswagen Polo', listed: { make: 'Volkswagen', model: 'Golf', transmission: 'manual', year: 2018 }, corroborate: null, trim: null });
     expect(assessPrice({ target: car(15000, contradictory), candidates })).toMatchObject({ reason: { code: 'conflicting_facts', fields: ['model'] } });
     expect(assessPrice({ target: car(15000), candidates: cohort(CLOSE, contradictory) })).toMatchObject({ kind: 'insufficient' });
   });
@@ -93,7 +93,7 @@ describe('search-relative price', () => {
   });
 
   test('title recovery can support exact matching with its evidence disclosed', () => {
-    const identity = readIdentity({ title: 'Volkswagen Golf manual', listed: { make: null, model: null, transmission: null }, corroborate: { make: 'Volkswagen', model: 'Golf' }, trim: null });
+    const identity = readIdentity({ title: 'Volkswagen Golf manual', listed: { make: null, model: null, transmission: null, year: 2018 }, corroborate: { make: 'Volkswagen', model: 'Golf' }, trim: null });
     const result = assessPrice({ target: car(15000, identity), candidates: cohort(CLOSE, identity) });
     expect(result).toMatchObject({ kind: 'ready', matchCount: 6, bounds: { targetFromTitle: ['make', 'model', 'transmission'], matchesFromTitle: 6 } });
   });

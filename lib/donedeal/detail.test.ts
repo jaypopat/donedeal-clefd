@@ -18,6 +18,21 @@ function detailPage(url: string) {
 }
 
 describe('detail page', () => {
+  test('preserves the structured year when the title contradicts it and never recovers a missing year', () => {
+    const listing = parseListingHref(AQUA_URL);
+    if (!listing) throw new Error('bad listing');
+    for (const year of ['2015', '2017', '']) {
+      const doc = documentFrom(fixtureText('detail-price.html') + nextDataScript({ props: { pageProps: {
+        id: listing.id, header: 'Toyota Aqua 2017',
+        displayAttributes: [{ name: 'make', value: 'Toyota' }, { name: 'model', value: 'Aqua' }, { name: 'year', value: year }],
+      } } }), AQUA_URL);
+      expect(observeDetail(doc, listing)?.facts).toMatchObject({
+        year: year ? Number(year) : null,
+        titleEvidence: { recovered: [], conflicts: year === '2015' ? ['year'] : [] },
+      });
+    }
+  });
+
   test('records limited coverage when a long description exceeds the text budget', () => {
     const listing = parseListingHref(AQUA_URL);
     if (!listing) throw new Error('bad listing url');

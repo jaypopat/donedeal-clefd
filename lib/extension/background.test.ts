@@ -10,6 +10,7 @@ import { startCacheCleanup } from './background';
 import { createStore } from './store';
 import { classifyPage } from '../donedeal/page';
 import { acceptPrice, newSearch, reconcileSearch, type PageModel } from '../page/model';
+import type { ListingFacts } from '../contracts/listing';
 
 const TAB = { tabId: 1, openerTabId: null };
 
@@ -608,9 +609,9 @@ describe('document lifecycle', () => {
 });
 
 describe('detail pages', () => {
-  async function pricedSearch(h: ReturnType<typeof harness>) {
+  async function pricedSearch(h: ReturnType<typeof harness>, targetOverrides: Partial<ListingFacts> = {}) {
     const nonce = await connect(h, 'search', { tabId: 7, openerTabId: null });
-    const cohort = cards(7);
+    const cohort = cards(7).map((card, index) => index === 0 ? { ...card, facts: { ...card.facts, ...targetOverrides } } : card);
     const sync = searchSync(nonce, cohort);
     await h.background.onPageMessage('search', sync);
     await until(() => priceDeliveries(h.messagesFor('search')).length === 7 && h.inFlight === 0);
@@ -649,12 +650,13 @@ describe('detail pages', () => {
       facts({ id: target.facts.listingId, variant: { kind: 'marked', code: 'gti', source: 'trim' } }),
       facts({ id: target.facts.listingId, variant: { kind: 'ambiguous' } }),
       facts({ id: target.facts.listingId, titleEvidence: { recovered: [], conflicts: ['transmission'] } }),
+      facts({ id: target.facts.listingId, titleEvidence: { recovered: [], conflicts: ['year'] } }),
     ];
     for (const [index, changed] of changes.entries()) {
       const docId = `revealed-${index}`;
       const nonce = await connect(h, docId, { tabId: 8 + index, openerTabId: 7 });
       await h.background.onPageMessage(docId, detailSync(nonce, { ...changed, price: target.facts.price, mileage: target.facts.mileage }));
-      expect(priceDeliveries(h.messagesFor(docId))[0]?.price).toEqual({ kind: 'no_search_context' });
+      expect(priceDeliveries(h.messagesFor(docId))[0]?.price).toEqual({ kind: 'comparison_unavailable', reason: 'facts_changed' });
       await until(() => warningDeliveries(h.messagesFor(docId)).length === 1);
       expect(warningDeliveries(h.messagesFor(docId))[0]?.assessment.coverage).toBe('detail');
     }
@@ -666,7 +668,10 @@ describe('detail pages', () => {
     expect(priceDeliveries(h.messagesFor('search'))[0]?.price).toMatchObject({ kind: 'assessed', assessment: { result: { kind: 'ready' } } });
     const nonce = await connect(h, 'damaged', { tabId: 8, openerTabId: 7 });
     await h.background.onPageMessage('damaged', detailSync(nonce, { ...target.facts, damageMentioned: true }, 'Accident damaged.'));
-    expect(priceDeliveries(h.messagesFor('damaged'))[0]?.price).toEqual({ kind: 'no_search_context' });
+    expect(priceDeliveries(h.messagesFor('damaged'))[0]?.price).toMatchObject({
+      kind: 'assessed', assessment: { scope: 'originating_search', observedAt: NOW, sampleSize: 7, loadedCount: 7,
+        result: { kind: 'insufficient', reason: { code: 'damage_mentioned' } } },
+    });
     await until(() => warningDeliveries(h.messagesFor('damaged')).length === 1);
     expect(warningDeliveries(h.messagesFor('damaged'))[0]?.assessment.coverage).toBe('detail');
   });
@@ -674,6 +679,8 @@ describe('detail pages', () => {
   test('reuses the originating search price for an ad opened from it, in the same or a new tab', async () => {
     const h = await enabled();
     const target = await pricedSearch(h);
+    const original = priceDeliveries(h.messagesFor('search')).find((delivery) => delivery.listingId === target.facts.listingId)?.price;
+    if (original?.kind !== 'assessed') throw new Error('expected the original search assessment');
     for (const [docId, tab] of [
       ['same-tab', { tabId: 7, openerTabId: null }],
       ['new-tab', { tabId: 8, openerTabId: 7 }],
@@ -682,12 +689,12 @@ describe('detail pages', () => {
       await h.background.onPageMessage(docId, detailSync(nonce, target.facts));
       expect(priceDeliveries(h.messagesFor(docId))[0]?.price).toEqual({
         kind: 'assessed',
-        assessment: expect.objectContaining({ scope: 'originating_search', observedAt: NOW }),
+        assessment: { ...original.assessment, scope: 'originating_search' },
       });
     }
   });
 
-  test('has no price context for a direct visit or a changed price, while warnings still run', async () => {
+  test('distinguishes a direct visit from a changed originating price while warnings still run', async () => {
     const h = await enabled();
     const target = await pricedSearch(h);
     const direct = await connect(h, 'direct', { tabId: 9, openerTabId: null });
@@ -698,7 +705,31 @@ describe('detail pages', () => {
 
     const edited = await connect(h, 'edited', { tabId: 7, openerTabId: null });
     await h.background.onPageMessage('edited', detailSync(edited, { ...target.facts, price: { kind: 'cash', eur: 9999 } }));
-    expect(priceDeliveries(h.messagesFor('edited'))[0]?.price).toEqual({ kind: 'no_search_context' });
+    expect(priceDeliveries(h.messagesFor('edited'))[0]?.price).toEqual({ kind: 'comparison_unavailable', reason: 'facts_changed' });
+  });
+
+  test('a newly known gearbox keeps its saved search provenance without reusing the old comparison', async () => {
+    const h = await enabled();
+    const target = await pricedSearch(h, { transmission: null });
+    const nonce = await connect(h, 'gearbox', { tabId: 8, openerTabId: 7 });
+    await h.background.onPageMessage('gearbox', detailSync(nonce, { ...target.facts, transmission: 'manual' }));
+    expect(priceDeliveries(h.messagesFor('gearbox'))[0]?.price).toEqual({ kind: 'comparison_unavailable', reason: 'facts_changed' });
+    await until(() => warningDeliveries(h.messagesFor('gearbox')).length === 1);
+    expect(warningDeliveries(h.messagesFor('gearbox'))[0]?.assessment.coverage).toBe('detail');
+    expect(h.requests.filter((request) => request.price !== null)).toHaveLength(1);
+  });
+
+  test.each([false, true])('a recorded opening with an evicted assessment explains its abstention, damage=%s', async (damageMentioned) => {
+    const h = await enabled();
+    const target = await pricedSearch(h);
+    await h.local.remove('tyrekick.assessments');
+    const nonce = await connect(h, 'evicted', { tabId: 8, openerTabId: 7 });
+    await h.background.onPageMessage('evicted', detailSync(nonce, { ...target.facts, damageMentioned }));
+    expect(priceDeliveries(h.messagesFor('evicted'))[0]?.price).toEqual({
+      kind: 'comparison_unavailable', reason: damageMentioned ? 'damage_mentioned' : 'assessment_missing',
+    });
+    await until(() => warningDeliveries(h.messagesFor('evicted')).length === 1);
+    expect(warningDeliveries(h.messagesFor('evicted'))[0]?.assessment).toMatchObject({ coverage: 'detail', result: { kind: 'checked' } });
   });
 
   test('a fresh full-listing check enriches the card only while overlapping facts agree', async () => {

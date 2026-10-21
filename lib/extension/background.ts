@@ -238,7 +238,18 @@ export function createBackground(deps: BackgroundDeps) {
     const opening = await deps.store.findOpening(sync.facts.listingId, tabs);
     if (!opening) return { kind: 'no_search_context' };
     const entry = findPrice(cache, priceKey(opening), deps.now());
-    if (!entry || !samePriceIdentity(entry.facts, sync.facts)) return { kind: 'no_search_context' };
+    if (sync.facts.damageMentioned) {
+      if (!entry) return { kind: 'comparison_unavailable', reason: 'damage_mentioned' };
+      return {
+        kind: 'assessed',
+        assessment: {
+          ...entry.assessment, scope: 'originating_search',
+          result: { kind: 'insufficient', reason: { code: 'damage_mentioned' }, unknownFactCount: entry.assessment.result.unknownFactCount },
+        },
+      };
+    }
+    if (!entry) return { kind: 'comparison_unavailable', reason: 'assessment_missing' };
+    if (!samePriceIdentity(entry.facts, sync.facts)) return { kind: 'comparison_unavailable', reason: 'facts_changed' };
     return { kind: 'assessed', assessment: { ...entry.assessment, scope: 'originating_search' } };
   }
 

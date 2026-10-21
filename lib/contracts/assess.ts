@@ -10,7 +10,7 @@ import {
   TargetFpSchema,
   listingIdOfUrl,
 } from './ids';
-import { CoverageSchema, ListingFactsSchema, ListingTextSchema, SearchFieldSchema, TitleFieldSchema } from './listing';
+import { CoverageSchema, ListingFactsSchema, ListingTextSchema, RecoveredTitleFieldSchema, SearchFieldSchema, TitleFieldSchema } from './listing';
 import { VariantCodeSchema } from './variants';
 
 export const PolicySchema = z.strictObject({
@@ -139,9 +139,9 @@ export const MatchBoundsSchema = z.strictObject({
     }),
     z.strictObject({ kind: z.literal('not_separated') }),
   ]),
-  targetFromTitle: z.array(TitleFieldSchema).max(3),
+  targetFromTitle: z.array(RecoveredTitleFieldSchema).max(3),
   targetFromSearch: z.array(SearchFieldSchema).max(5),
-  targetConflicts: z.array(TitleFieldSchema).max(3),
+  targetConflicts: z.array(TitleFieldSchema).max(4),
   matchesFromTitle: z.int().min(0),
   matchesFromSearch: z.int().min(0),
 });
