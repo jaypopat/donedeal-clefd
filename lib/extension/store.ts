@@ -44,9 +44,12 @@ export function createStore(deps: { local: StorageArea; session: StorageArea; no
     return parsed.success ? parsed.data : DEFAULT_SETTINGS;
   }
 
-  async function cache(generation: number): Promise<Cache> {
-    const parsed = CacheSchema.safeParse(await deps.local.get(CACHE_KEY));
-    return parsed.success && parsed.data.generation === generation ? parsed.data : emptyCache(generation);
+  async function cache(generation: number): Promise<{ value: Cache; needsReset: boolean }> {
+    const raw = await deps.local.get(CACHE_KEY);
+    const parsed = CacheSchema.safeParse(raw);
+    return parsed.success && parsed.data.generation === generation
+      ? { value: parsed.data, needsReset: false }
+      : { value: emptyCache(generation), needsReset: raw !== undefined };
   }
 
   async function openings(generation: number): Promise<Openings> {
@@ -61,15 +64,15 @@ export function createStore(deps: { local: StorageArea; session: StorageArea; no
 
     async snapshot(): Promise<{ settings: Settings; cache: Cache }> {
       const current = await settings();
-      const stored = await cache(current.generation);
-      if (pruneCache(stored, deps.now()).entries.length === stored.entries.length) {
+      const { value: stored, needsReset } = await cache(current.generation);
+      if (!needsReset && pruneCache(stored, deps.now()).entries.length === stored.entries.length) {
         return { settings: current, cache: stored };
       }
       return serial(async () => {
         const latest = await settings();
-        const stored = await cache(latest.generation);
+        const { value: stored, needsReset } = await cache(latest.generation);
         const fresh = pruneCache(stored, deps.now());
-        if (fresh.entries.length !== stored.entries.length) await deps.local.set(CACHE_KEY, fresh);
+        if (needsReset || fresh.entries.length !== stored.entries.length) await deps.local.set(CACHE_KEY, fresh);
         return { settings: latest, cache: fresh };
       });
     },
@@ -98,7 +101,8 @@ export function createStore(deps: { local: StorageArea; session: StorageArea; no
       return serial(async () => {
         const current = await settings();
         if (current.generation !== generation || !isActive(current)) return false;
-        await deps.local.set(CACHE_KEY, withEntry(await cache(generation), entry, deps.now()));
+        const { value: stored } = await cache(generation);
+        await deps.local.set(CACHE_KEY, withEntry(stored, entry, deps.now()));
         return true;
       });
     },
