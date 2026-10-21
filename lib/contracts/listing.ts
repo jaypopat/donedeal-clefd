@@ -33,7 +33,7 @@ export type Transmission = z.infer<typeof TransmissionSchema>;
 export const SellerTypeSchema = z.enum(['dealer', 'private']);
 export type SellerType = z.infer<typeof SellerTypeSchema>;
 
-export const CoverageSchema = z.enum(['card', 'detail']);
+export const CoverageSchema = z.enum(['card', 'detail', 'detail_partial']);
 export type Coverage = z.infer<typeof CoverageSchema>;
 
 const DisplayName = z.string().trim().min(1).max(60);

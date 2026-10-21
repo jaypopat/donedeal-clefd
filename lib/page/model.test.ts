@@ -168,10 +168,24 @@ describe('search snapshot', () => {
 });
 
 describe('detail page', () => {
+  test('partial coverage survives sync and rejects a result for full coverage', async () => {
+    const [card] = observed(1);
+    if (!card) throw new Error('empty');
+    const partial = await newDetail({ ...card, coverage: 'detail_partial' }, NOW);
+    const full = await newDetail({ ...card, coverage: 'detail' }, NOW);
+    expect(partial.binding.contentFp).not.toBe(full.binding.contentFp);
+    expect(syncFor(partial, new Set())).toMatchObject({ kind: 'detail', coverage: 'detail_partial' });
+    expect(acceptWarning(partial, {
+      listingId: card.facts.listingId,
+      contentFp: full.binding.contentFp,
+      assessment: { coverage: 'detail', observedAt: NOW, reusedFromDetail: false, result: { kind: 'checked', findings: [] } },
+    })).toBeNull();
+  });
+
   test('accepts a no-search-context price only for its own listing', async () => {
     const [card] = observed(1);
     if (!card) throw new Error('empty');
-    const model = await newDetail(card, NOW);
+    const model = await newDetail({ ...card, coverage: 'detail' }, NOW);
     const delivery: PriceDelivery = { listingId: card.facts.listingId, targetFp: model.binding.targetFp, context: null, price: { kind: 'no_search_context' } };
     expect(acceptPrice(model, delivery)).toMatchObject({ binding: { price: { kind: 'no_search_context' } } });
     const context = { contextId: newContextId(), contextFp: await contextFingerprint([card.facts]) };

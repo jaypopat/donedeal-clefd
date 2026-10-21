@@ -248,7 +248,7 @@ export function createBackground(deps: BackgroundDeps) {
     const targetFp = await targetFingerprint(sync.facts);
     const deliveries: WarningDelivery[] = [];
     const jobs: WarningJob[] = [];
-    const target: WarningTarget = { facts: sync.facts, coverage: 'detail', text: sync.text, observedAt: sync.observedAt };
+    const target: WarningTarget = { facts: sync.facts, coverage: sync.coverage, text: sync.text, observedAt: sync.observedAt };
     await warningWork({ cache, target, deliveries, jobs });
     if (!isCurrent(operation)) return;
     if (doc.documentNonce) {

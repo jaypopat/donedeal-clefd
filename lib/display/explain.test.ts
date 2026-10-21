@@ -76,6 +76,15 @@ describe('badges', () => {
 });
 
 describe('explanations', () => {
+  test('limited detail text never claims a full or clean listing check', () => {
+    const limited = view(priced(great), checked({ kind: 'checked', findings: [] }, 'detail_partial'), 'detail_partial');
+    expect(badgesFor(limited).map((badge) => badge.text)).toContain('Limited info');
+    const { warnings } = explain(limited, time);
+    expect(warnings.coverage).toContain('4,000');
+    expect(warnings.summary).toContain('full description');
+    expect(JSON.stringify(warnings)).not.toMatch(/Full listing checked|No warning signs detected/);
+  });
+
   test('price explanations are scoped to this search with count and sample time', () => {
     const { price } = explain(view(priced(great), checked({ kind: 'checked', findings: [] }, 'card')), time);
     expect(price.scope).toBe('Compared with this search · 6 close matches · sampled 14:32');

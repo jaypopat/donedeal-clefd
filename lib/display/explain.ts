@@ -93,7 +93,7 @@ function warningBadge(view: WarningView): Badge | null {
   const label = warningLabel(result.findings);
   if (label === 'suspicious') return { text: 'Suspicious', tone: 'danger' };
   if (label === 'check_details') return { text: 'Check details', tone: 'caution' };
-  return coverage === 'card' ? { text: 'Limited info', tone: 'muted' } : null;
+  return coverage !== 'detail' ? { text: 'Limited info', tone: 'muted' } : null;
 }
 
 export function badgesFor(view: CardView): Badge[] {
@@ -217,6 +217,9 @@ function priceSection(view: PriceView, time: (ms: number) => string): PriceSecti
 }
 
 function coverageLine(assessment: WarningAssessment, time: (ms: number) => string): string {
+  if (assessment.coverage === 'detail_partial') {
+    return `Limited listing text · up to 4,000 characters checked · ${time(assessment.observedAt)}`;
+  }
   if (assessment.reusedFromDetail) {
     return `Full listing checked when you opened the ad at ${time(assessment.observedAt)}. Later edits to the ad won't show here.`;
   }
@@ -244,11 +247,13 @@ function warningSection(view: WarningView, time: (ms: number) => string): Warnin
     fields: finding.evidence.flatMap((evidence) => (evidence.kind === 'field' ? [`${FIELD_LABELS[evidence.field]}: ${evidence.value}`] : [])),
   }));
   const label = warningLabel(result.findings);
-  const heading = label === 'suspicious' ? 'Suspicious' : label === 'check_details' ? 'Check details' : assessment.coverage === 'card' ? 'Limited info' : 'Warnings';
+  const heading = label === 'suspicious' ? 'Suspicious' : label === 'check_details' ? 'Check details' : assessment.coverage !== 'detail' ? 'Limited info' : 'Warnings';
   const summary =
     findings.length > 0
       ? 'Seller claims are unverified. These are questions to raise, not proof of a problem.'
-      : assessment.coverage === 'card'
+      : assessment.coverage === 'detail_partial'
+        ? 'This long listing received a limited text check. The full description may not have been checked.'
+        : assessment.coverage === 'card'
         ? 'Only the card was checked. Open the ad for a fuller check.'
         : "No warning signs detected in the information checked. This doesn't verify the car or the seller.";
   return { heading, summary, findings, coverage: coverageLine(assessment, time) };

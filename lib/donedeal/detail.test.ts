@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { z } from 'zod';
 import { parseListingHref } from '../contracts/ids';
 import { documentFrom, nextDataScript } from '../../tests/support/dom';
 import { fixtureJson, fixtureText } from '../../tests/support/fixtures';
@@ -17,6 +18,17 @@ function detailPage(url: string) {
 }
 
 describe('detail page', () => {
+  test('records limited coverage when a long description exceeds the text budget', () => {
+    const listing = parseListingHref(AQUA_URL);
+    if (!listing) throw new Error('bad listing url');
+    const data = z.object({ props: z.object({ pageProps: z.record(z.string(), z.unknown()) }) }).parse(fixtureJson('detail-next-data.json'));
+    const changed = { props: { pageProps: { ...data.props.pageProps, description: 'Ordinary listing text. '.repeat(250) + 'Send a deposit before viewing.' } } };
+    const doc = documentFrom(`${fixtureText('detail-price.html')}${nextDataScript(changed)}`, AQUA_URL);
+    const detail = observeDetail(doc, listing);
+    expect(detail?.coverage).toBe('detail_partial');
+    expect(detail?.text).not.toContain('Send a deposit');
+  });
+
   test('reads named vehicle attributes, seller type and the cash price', () => {
     expect<unknown>(detailPage(AQUA_URL)?.facts).toEqual({
       listingId: '42864633',

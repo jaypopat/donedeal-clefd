@@ -88,8 +88,8 @@ export async function reconcileSearch(
   };
 }
 
-export async function newDetail(observed: Observed, now: number): Promise<DetailModel> {
-  return { kind: 'detail', observedAt: now, binding: await bindingFor(observed, 'detail', undefined) };
+export async function newDetail(observed: Observed & { coverage: 'detail' | 'detail_partial' }, now: number): Promise<DetailModel> {
+  return { kind: 'detail', observedAt: now, binding: await bindingFor(observed, observed.coverage, undefined) };
 }
 
 export function acceptPrice(model: PageModel, delivery: PriceDelivery): PageModel | null {
@@ -130,7 +130,7 @@ export function resetBranches(model: PageModel): PageModel {
 
 export function syncFor(model: PageModel, visible: ReadonlySet<ListingId>): SearchSync | DetailSync | null {
   if (model.kind === 'detail') {
-    return { kind: 'detail', facts: model.binding.facts, text: model.binding.text, observedAt: model.observedAt };
+    return { kind: 'detail', coverage: model.binding.coverage === 'detail_partial' ? 'detail_partial' : 'detail', facts: model.binding.facts, text: model.binding.text, observedAt: model.observedAt };
   }
   const cards = model.order.slice(0, MAX_PAGE_CARDS).flatMap((id) => {
     const binding = model.bindings.get(id);

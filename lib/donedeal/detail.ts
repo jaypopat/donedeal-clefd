@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { ListingRef } from '../contracts/ids';
 import type { AskingPrice, ListingFacts } from '../contracts/listing';
 import { ListingFactsSchema } from '../contracts/listing';
+import { LIMITS } from '../contracts/versions';
 import type { RedactedText } from '../privacy/redact';
 import { redact } from '../privacy/redact';
 import { byClassPrefix, readNextData } from './dom';
@@ -37,6 +38,7 @@ export type DetailObservation = {
   anchor: Element;
   facts: ListingFacts;
   text: RedactedText;
+  coverage: 'detail' | 'detail_partial';
 };
 
 function detailPrice(pageProps: z.infer<typeof NextDetailSchema>['props']['pageProps'], dom: string | null): AskingPrice {
@@ -73,5 +75,7 @@ export function observeDetail(doc: Document, listing: ListingRef): DetailObserva
   });
   if (!facts.success) return null;
   const description = pageProps.description ?? '';
-  return { anchor, facts: facts.data, text: redact(`${header}\n\n${description}`) };
+  const source = `${header}\n\n${description}`;
+  const coverage = Array.from(source).length > LIMITS.maxTextCodepoints ? 'detail_partial' : 'detail';
+  return { anchor, facts: facts.data, text: redact(source), coverage };
 }

@@ -17,7 +17,7 @@ const PRIVATE_TRADE_CUE = /\b(finance|trade[- ]?ins?|warranty|dealer|stock|showr
 
 function worthModelCheck(target: WarningTarget): boolean {
   if (target.text.trim() === '') return false;
-  if (target.coverage === 'detail') return true;
+  if (target.coverage !== 'card') return true;
   if (CARD_CUES.some((cue) => cue.test(target.text))) return true;
   return target.facts.sellerType === 'private' && PRIVATE_TRADE_CUE.test(target.text);
 }

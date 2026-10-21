@@ -51,6 +51,7 @@ export type SearchSync = z.infer<typeof SearchSyncSchema>;
 
 export const DetailSyncSchema = z.strictObject({
   kind: z.literal('detail'),
+  coverage: z.enum(['detail', 'detail_partial']),
   facts: ListingFactsSchema,
   text: ListingTextSchema,
   observedAt: EpochMsSchema,

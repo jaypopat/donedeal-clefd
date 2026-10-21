@@ -321,7 +321,7 @@ describe('pause and clear', () => {
       h.store.findOpening = held.run;
       const preparing = h.background.onPageMessage('doc', {
         type: 'sync', documentNonce: nonce,
-        page: { kind: 'detail', facts: facts({ id: '45000001' }), text: redact('Full service history.'), observedAt: NOW },
+        page: { kind: 'detail', coverage: 'detail', facts: facts({ id: '45000001' }), text: redact('Full service history.'), observedAt: NOW },
       });
       await held.started;
       await h.background.onPopupMessage({ type: control });
@@ -337,7 +337,7 @@ describe('pause and clear', () => {
       const nonce = await connect(h, 'doc');
       const sync = {
         type: 'sync', documentNonce: nonce,
-        page: { kind: 'detail', facts: facts({ id: '45000001' }), text: redact('Full service history.'), observedAt: NOW },
+        page: { kind: 'detail', coverage: 'detail', facts: facts({ id: '45000001' }), text: redact('Full service history.'), observedAt: NOW },
       };
       await h.background.onPageMessage('doc', sync);
       await until(() => h.inFlight === 0 && storedEntries(h).length === 1);
@@ -566,7 +566,7 @@ describe('document lifecycle', () => {
     h.store.findOpening = held.run;
     const preparing = h.background.onPageMessage('doc', {
       type: 'sync', documentNonce: nonce,
-      page: { kind: 'detail', facts: facts({ id: '45000001' }), text: redact('Full service history.'), observedAt: NOW },
+      page: { kind: 'detail', coverage: 'detail', facts: facts({ id: '45000001' }), text: redact('Full service history.'), observedAt: NOW },
     });
     await held.started;
     await h.background.onPageMessage('doc', searchSync(nonce, cards(2, 47000000)));
@@ -617,8 +617,20 @@ describe('detail pages', () => {
   }
 
   function detailSync(nonce: ReturnType<typeof newDocumentNonce>, detailFacts: ReturnType<typeof facts>, text = 'Full service history.') {
-    return { type: 'sync', documentNonce: nonce, page: { kind: 'detail', facts: detailFacts, text: redact(text), observedAt: NOW } };
+    return { type: 'sync', documentNonce: nonce, page: { kind: 'detail', coverage: 'detail', facts: detailFacts, text: redact(text), observedAt: NOW } };
   }
+
+  test('partial detail coverage is preserved across Worker results and local cache', async () => {
+    const h = await enabled();
+    const nonce = await connect(h, 'partial', TAB);
+    const full = detailSync(nonce, facts({ id: '45000001' }));
+    await h.background.onPageMessage('partial', { ...full, page: { ...full.page, coverage: 'detail_partial' } });
+    await until(() => warningDeliveries(h.messagesFor('partial')).length === 1);
+    expect(h.requests[0]?.warnings?.targets[0]?.coverage).toBe('detail_partial');
+    expect(warningDeliveries(h.messagesFor('partial'))[0]?.assessment.coverage).toBe('detail_partial');
+    const { cache: saved } = await h.store.snapshot();
+    expect(saved.entries.some((entry) => entry.branch === 'warning' && entry.assessment.coverage === 'detail_partial')).toBe(true);
+  });
 
   test('newly revealed damage invalidates a ready originating search price', async () => {
     const h = await enabled();
