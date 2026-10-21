@@ -7,11 +7,11 @@ import { ASSESS_SCHEMA_VERSION, POLICY } from '../lib/contracts/versions';
 import { redact } from '../lib/privacy/redact';
 import { facts } from '../tests/support/listings';
 
-const { values } = parseArgs({ options: { port: { type: 'string', default: '8791' }, 'extension-origin': { type: 'string' } } });
+const { values } = parseArgs({ options: { port: { type: 'string', default: '8791' }, 'extension-origin': { type: 'string' }, case: { type: 'string' } } });
 assert.match(values.port, /^\d{2,5}$/);
 assert.match(values['extension-origin'] ?? '', /^chrome-extension:\/\/[a-p]{32}$/);
 
-const cases: Array<{ name: string; text: string; coverage: WarningTarget['coverage']; expected: ReasonCode[] }> = [
+const examples: Array<{ name: string; text: string; coverage: WarningTarget['coverage']; expected: ReasonCode[] }> = [
   { name: 'no viewing without deposit', text: 'No viewing without a deposit.', coverage: 'detail', expected: ['payment_before_viewing'] },
   { name: 'cannot view without deposit', text: 'Cannot view without deposit.', coverage: 'detail', expected: ['payment_before_viewing'] },
   { name: 'viewing not required', text: 'Viewing not required, send €500 deposit to secure it.', coverage: 'detail', expected: ['payment_before_viewing'] },
@@ -20,6 +20,8 @@ const cases: Array<{ name: string; text: string; coverage: WarningTarget['covera
   { name: 'odometer miles', text: 'Only 40k mls on the clock.', coverage: 'detail', expected: ['mileage_mismatch'] },
   { name: 'limited detail coverage', text: 'Ordinary listing text. '.repeat(250), coverage: 'detail_partial', expected: [] },
 ];
+const cases = values.case ? examples.filter((entry) => entry.name === values.case) : examples;
+assert.ok(cases.length > 0, 'No matching cases');
 const now = Date.now();
 const targets: WarningTarget[] = cases.map((entry, index) => ({
   facts: facts({ id: String(56000001 + index) }), text: redact(entry.text), coverage: entry.coverage, observedAt: now,
@@ -35,6 +37,7 @@ const result = AssessResponseSchema.parse(await response.json());
 assert.equal(result.requestId, requestId);
 assert.equal(result.warnings?.results.length, targets.length);
 const checks = [];
+const failures: Array<{ name: string; error: string }> = [];
 for (const [index, entry] of cases.entries()) {
   const target = targets[index];
   assert.ok(target);
@@ -42,8 +45,10 @@ for (const [index, entry] of cases.entries()) {
   assert.ok(checked, entry.name);
   assert.equal(checked.coverage, target.coverage, entry.name);
   assert.equal(checked.contentFp, await contentFingerprint(target), entry.name);
-  assert.equal(checked.result.kind, 'checked', entry.name);
-  if (checked.result.kind !== 'checked') throw new Error(`Unavailable model check: ${entry.name}`);
+  if (checked.result.kind !== 'checked') {
+    failures.push({ name: entry.name, error: checked.result.error });
+    continue;
+  }
   for (const finding of checked.result.findings) {
     for (const evidence of finding.evidence) {
       if (evidence.kind === 'text') assert.equal(codepointSlice(target.text, evidence.start, evidence.end), evidence.excerpt, entry.name);
@@ -52,4 +57,5 @@ for (const [index, entry] of cases.entries()) {
   assert.deepEqual(checked.result.findings.map((finding) => finding.reason).sort(), [...entry.expected].sort(), entry.name);
   checks.push({ name: entry.name, coverage: checked.coverage, reasons: entry.expected });
 }
-console.log(JSON.stringify({ provider: 'real Workers AI', checks }, null, 2));
+console.log(JSON.stringify({ provider: 'real Workers AI', checks, failures }, null, 2));
+assert.deepEqual(failures, [], 'Some real-model checks were unavailable');

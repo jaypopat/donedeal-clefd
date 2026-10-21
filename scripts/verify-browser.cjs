@@ -26,7 +26,8 @@ const card = (index) => `<article class="Card-styled__Container-fixture"><h3><a 
 const script = (data) => `<script type="application/json" id="__NEXT_DATA__">${JSON.stringify(data)}</script>`;
 const shell = (body) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>DoneDeal fixture</title><style>body{font:16px system-ui;background:#f4f6f3;padding:25px}main{max-width:850px}.Card-styled__Container-fixture{border:1px solid #ddd;position:relative;background:white;padding:16px;margin:12px 0;min-height:155px}h3 a::after{content:'';position:absolute;inset:0}ul{display:flex;gap:30px;list-style:none;padding:0}.Price-styled__Price-fixture{font-size:22px;font-weight:bold}</style></head><body><main>${body}</main></body></html>`;
 const searchHtml = () => shell(`<h1>Volkswagen Golf</h1>${prices.map((_, i) => card(i)).join('')}${script(nextData())}`);
-const detailHtml = () => shell(`<h1>Volkswagen Golf</h1><div class="AdTitleBox-styled__PriceRow-fixture"><div class="AdTitleBox-styled__Price-fixture">€10,000</div></div>${script({ props: { pageProps: { id: 55000001, header: 'Volkswagen Golf', description: 'Pay a €500 deposit before viewing. Call 087 123 4567 or email seller@example.com.', priceEuro: 10000, sellerType: 'dealer', displayAttributes: [{ name: 'year', value: '2018' }, { name: 'mileage', value: '90000 km' }, { name: 'make', value: 'Volkswagen' }, { name: 'model', value: 'Golf' }, { name: 'fuelType', value: 'Diesel' }, { name: 'transmission', value: 'Manual' }, { name: 'engine', value: '1.6' }] } } })}`);
+let detailDescription = 'Pay a €500 deposit before viewing. Call 087 123 4567 or email seller@example.com.';
+const detailHtml = () => shell(`<h1>Volkswagen Golf</h1><div class="AdTitleBox-styled__PriceRow-fixture"><div class="AdTitleBox-styled__Price-fixture">€10,000</div></div>${script({ props: { pageProps: { id: 55000001, header: 'Volkswagen Golf', description: detailDescription, priceEuro: 10000, sellerType: 'dealer', displayAttributes: [{ name: 'year', value: '2018' }, { name: 'mileage', value: '90000 km' }, { name: 'make', value: 'Volkswagen' }, { name: 'model', value: 'Golf' }, { name: 'fuelType', value: 'Diesel' }, { name: 'transmission', value: 'Manual' }, { name: 'engine', value: '1.6' }] } } })}`);
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let fixture;
 let context;
@@ -187,6 +188,16 @@ async function main() {
   await popup.getByRole('button', { name: 'Resume analysis' }).click();
   await page.locator('tyrekick-badges').first().getByRole('button', { name: /Price: Not enough data/ }).waitFor();
   check('pause hides signals, clear rejects late results and removes stored data, resume restarts analysis');
+  detailDescription = 'Ordinary listing text. '.repeat(250) + 'Pay a €500 deposit before viewing.';
+  await page.goto(detailUrl);
+  await page.locator('tyrekick-badges').getByRole('button', { name: /Warnings: Limited info/ }).waitFor();
+  await settled(page);
+  assert.ok((await stats()).lastWarnings.some((target) => target.coverage === 'detail_partial' && !target.hasPayment));
+  await page.locator('tyrekick-badges').getByRole('button').click();
+  const limited = await page.getByRole('dialog').textContent();
+  assert.match(limited, /4,000 characters checked/);
+  assert.doesNotMatch(limited, /Full listing checked|No warning signs detected/);
+  check('long descriptions keep partial coverage through transport, cache and visible explanation');
   assert.deepEqual(errors, [], 'No page or React runtime errors.');
   console.log(JSON.stringify({ extensionId, checks: checks.length, fixtureRequests: (await stats()).requests, model: 'deterministic fixture, no live inference' }));
 }
