@@ -31,6 +31,9 @@ const NEGATED_PAYMENT = [
 const SHIPPING_WORDS = /\b(ship|shipped|shipping|deliver|delivered|delivery|courier|abroad|overseas|transport)\b/i;
 const TRADE_WORDS = /\b(finance|trade[- ]?ins?|warranty|dealer|dealership|stock|showroom|garage|business|vat|invoice|part[- ]exchange)\b/i;
 const SERVICE_WORDS = /\b(service|serviced|servicing|history|stamps?|book)\b/i;
+const MAINTENANCE_DISTANCE_BEFORE = /\b(?:servic(?:e|ed|ing)|(?:timing|cam)\s*belt|tyres?|tires?|oil|filters?|clutch|brakes?|water\s*pump)\b.*\b(?:at|when|every|after)\s*$/i;
+const MAINTENANCE_DISTANCE_AFTER = /^\s*(?:(?:timing|cam)\s*belt|service|tyres?|tires?|oil|filters?|clutch|brakes?|water\s*pump)\s+(?:was\s+|were\s+)?(?:done|completed|changed|replaced|fitted|due)\b/i;
+const CURRENT_MILEAGE_BEFORE = /\b(?:mileage(?:\s+is)?|odometer(?:\s+reads?)?|covered|only)\s*[:=-]?\s*$/i;
 
 function textEvidence(claim: Claim): Evidence {
   return { kind: 'text', start: claim.start, end: claim.end, excerpt: claim.excerpt };
@@ -55,12 +58,19 @@ function said(input: PolicyInput, question: QuestionName): boolean {
 }
 
 export function claimedKm(excerpt: string): number | null {
-  const match = /(\d+(?:[.,]\d+)*)\s*(k|thousand)?\s*(kms?|kilomet(?:er|re)s?|mi|miles?|mls)\b/i.exec(excerpt);
-  if (!match?.[1] || !match[3]) return null;
-  const number = Number(match[1].replace(/[.,](?=\d{3}\b)/g, '').replace(',', '.'));
-  if (!Number.isFinite(number)) return null;
-  const value = match[2] && number < 1000 ? number * 1000 : number;
-  return match[3].toLowerCase().startsWith('k') ? Math.round(value) : Math.round(value * 1.609344);
+  const distances = excerpt.matchAll(/(\d+(?:[.,]\d+)*)\s*(k|thousand)?\s*(kms?|kilomet(?:er|re)s?|mi|miles?|mls)\b/gi);
+  for (const match of distances) {
+    if (!match[1] || !match[3]) continue;
+    const before = excerpt.slice(0, match.index).split(/[,;.!?\n](?!\d)|\b(?:now|currently|but)\b/i).at(-1) ?? '';
+    const after = excerpt.slice(match.index + match[0].length);
+    if (MAINTENANCE_DISTANCE_BEFORE.test(before)) continue;
+    if (MAINTENANCE_DISTANCE_AFTER.test(after) && !CURRENT_MILEAGE_BEFORE.test(before)) continue;
+    const number = Number(match[1].replace(/[.,](?=\d{3}\b)/g, '').replace(',', '.'));
+    if (!Number.isFinite(number)) continue;
+    const value = match[2] && number < 1000 ? number * 1000 : number;
+    return match[3].toLowerCase().startsWith('k') ? Math.round(value) : Math.round(value * 1.609344);
+  }
+  return null;
 }
 
 type FuelFamily = 'petrol' | 'diesel' | 'electric' | 'hybrid';
