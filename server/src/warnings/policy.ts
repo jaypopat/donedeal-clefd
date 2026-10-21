@@ -21,8 +21,13 @@ type PolicyInput = {
 
 const PAYMENT_WORDS = /\b(deposit|pay|paid|payment|transfer|money|cash|revolut|western union|bank)\b|€/i;
 const VIEWING_WORDS = /\b(view|viewing|viewed|see|seeing|inspect|inspection|test drive|collect|collection)\b/i;
-const NEGATED_PAYMENT =
-  /\b(no|never)\s+(deposit|payment|money)s?\b|\b(don't|do not|never)\s+(send|pay|transfer)\b|\bwithout\s+(a\s+|any\s+)?(deposit|payment)\b|\b(not|no)\s+(required|needed|necessary)\b/i;
+const NEGATED_PAYMENT = [
+  /\b(?:no|never)\s+(?:deposit|payment|money)s?\b(?=\s*(?:(?:is|are)\s+)?(?:required\b|needed\b|necessary\b|before\b|until\b|upfront\b|in advance\b|to\b|[.,;!?]|$))/i,
+  /\b(?:deposit|payment|money)\s+(?:(?:is|are)\s+)?(?:not|never)\s+(?:required|needed|necessary)\b/i,
+  /\b(?:don't|do not|never)\s+(?:pay\b|(?:send|transfer)\s+(?:any\s+)?(?:money|cash|payment|deposit)\b)/i,
+  /(?:^|[.!?;,\n]\s*)(?:please\s+)?(?:(?:you\s+)?(?:can|may)\s+)?(?:view|inspect|see|test drive)\s+without\s+(?:a\s+|any\s+)?(?:deposit|payment)\b/i,
+  /(?:^|[.!?;,\n]\s*)(?:a\s+)?(?:viewing|inspection|test drive)\s+(?:is\s+)?(?:welcome|available|allowed|possible|permitted)\s+without\s+(?:a\s+|any\s+)?(?:deposit|payment)\b/i,
+];
 const SHIPPING_WORDS = /\b(ship|shipped|shipping|deliver|delivered|delivery|courier|abroad|overseas|transport)\b/i;
 const TRADE_WORDS = /\b(finance|trade[- ]?ins?|warranty|dealer|dealership|stock|showroom|garage|business|vat|invoice|part[- ]exchange)\b/i;
 const SERVICE_WORDS = /\b(service|serviced|servicing|history|stamps?|book)\b/i;
@@ -108,7 +113,7 @@ const RULES: Rule[] = [
     const claim = input.claims.payment_statement;
     if (!claim || !said(input, 'payment_before_viewing')) return null;
     if (!PAYMENT_WORDS.test(claim.excerpt) || !VIEWING_WORDS.test(claim.excerpt)) return null;
-    if (NEGATED_PAYMENT.test(claim.excerpt)) return null;
+    if (NEGATED_PAYMENT.some((pattern) => pattern.test(claim.excerpt))) return null;
     return finding('payment_before_viewing', textEvidence(claim));
   },
   (input) => {
