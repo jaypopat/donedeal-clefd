@@ -42,6 +42,59 @@ function findings(result: WarningResult) {
 }
 
 describe('Clairic evidence from recorded provider responses', () => {
+  test.each([
+    ['Pay a €500 deposit before viewing.', '€500 deposit', 'Pay a €500 deposit before viewing.'],
+    ['🚗 Ready. Pay a €500.50 deposit before viewing.', '€500.50 deposit', 'Pay a €500.50 deposit before viewing.'],
+    ['No deposit needed before viewing. Pay a €500 deposit before viewing.', '€500 deposit', 'Pay a €500 deposit before viewing.'],
+  ])('recovers the source sentence for a payment fragment: %s', async (text, fragment, sentence) => {
+    const { gateway } = fakeGateway({
+      clairic: () => clairicResult(text, { payment_statement: fragment }),
+      clef: () => clefResult({ payment_before_viewing: 0.99 }),
+    });
+    const start = Array.from(text.slice(0, text.indexOf(sentence))).length;
+    expect(findings((await run(target(text), gateway)).result)).toEqual([{
+      reason: 'payment_before_viewing',
+      evidence: [{ kind: 'text', start, end: start + Array.from(sentence).length, excerpt: sentence }],
+    }]);
+  });
+
+  test.each(['deposit', 'deposit needed before viewing'])('recovers preceding payment negation omitted from %s', async (fragment) => {
+    const text = 'No deposit needed before viewing.';
+    const { gateway } = fakeGateway({
+      clairic: () => clairicResult(text, { payment_statement: fragment }),
+      clef: () => clefResult({ payment_before_viewing: 0.99 }),
+    });
+    expect((await run(target(text), gateway)).result).toEqual({ kind: 'checked', findings: [] });
+  });
+
+  test.each([400, 401])('bounds recovered payment sentences at 400 codepoints: %s', async (length) => {
+    const prefix = 'Pay a €500 deposit before viewing ';
+    const text = `${prefix}${'🚗'.repeat(length - prefix.length - 1)}.`;
+    const { gateway } = fakeGateway({
+      clairic: () => clairicResult(text, { payment_statement: '€500 deposit' }),
+      clef: () => clefResult({ payment_before_viewing: 0.99 }),
+    });
+    const { result } = await run(target(text), gateway);
+    expect(result).toEqual(length === 400 ? {
+      kind: 'checked',
+      findings: [{ reason: 'payment_before_viewing', evidence: [{ kind: 'text', start: 0, end: 400, excerpt: text }] }],
+    } : { kind: 'unavailable', error: 'model_invalid_output' });
+  });
+
+  test('rejects a payment fragment with UTF-16 offsets before recovering context', async () => {
+    const text = '🚗 Pay a €500 deposit before viewing.';
+    const fragment = '€500 deposit';
+    const start = text.indexOf(fragment);
+    const { gateway, calls } = fakeGateway({
+      clairic: () => clairicAnswers(withSimulatedNullClaims({
+        payment_statement: { type: 'text', value: fragment, span: [start, start + fragment.length] },
+      })),
+      clef: () => clefResult({ payment_before_viewing: 0.99 }),
+    });
+    expect((await run(target(text), gateway)).result).toEqual({ kind: 'unavailable', error: 'model_invalid_output' });
+    expect(calls.map((call) => call.model)).toEqual(['clairic']);
+  });
+
   test('grounds a fragmented payment claim in its complete source sentence', async () => {
     const text = 'Viewing not required, send €500 deposit to secure it.';
     const { gateway } = fakeGateway({
@@ -131,6 +184,47 @@ describe('Clairic evidence from recorded provider responses', () => {
 });
 
 describe('warning policy', () => {
+  test.each([
+    'Serviced 5,000 km ago, now on 90,000 km.',
+    'Timing belt changed 60,000km, mileage 90,000km.',
+  ])('keeps the selected odometer reading after an earlier event distance: %s', async (text) => {
+    const fragment = text.includes('90,000 km') ? '90,000 km' : '90,000km';
+    const { gateway } = fakeGateway({ clairic: () => clairicResult(text, { mileage_statement: fragment }) });
+    expect((await run(target(text, { mileage: { value: 90000, unit: 'km' } }), gateway)).result)
+      .toEqual({ kind: 'checked', findings: [] });
+  });
+
+  test.each(['km', 'mi', 'mls'])('reports the selected mismatching odometer in %s after an earlier distance', async (unit) => {
+    const fragment = `40,000 ${unit}`;
+    const text = `Serviced 5,000 km ago, now on ${fragment}.`;
+    const { gateway } = fakeGateway({ clairic: () => clairicResult(text, { mileage_statement: fragment }) });
+    const start = text.indexOf(fragment);
+    expect(findings((await run(target(text, { mileage: { value: 90000, unit: 'km' } }), gateway)).result)).toEqual([{
+      reason: 'mileage_mismatch',
+      evidence: [
+        { kind: 'text', start, end: start + fragment.length, excerpt: fragment },
+        { kind: 'field', field: 'mileage', value: '90,000 km' },
+      ],
+    }]);
+  });
+
+  test('uses the selected occurrence of a repeated distance after an emoji', async () => {
+    const text = '🚗 Service done at 60,000km, mileage 60,000km.';
+    const fragment = '60,000km';
+    const start = Array.from(text.slice(0, text.lastIndexOf(fragment))).length;
+    const end = start + fragment.length;
+    const { gateway } = fakeGateway({ clairic: () => clairicAnswers(withSimulatedNullClaims({
+      mileage_statement: { type: 'text', value: fragment, span: [start, end] },
+    })) });
+    expect(findings((await run(target(text, { mileage: { value: 90000, unit: 'km' } }), gateway)).result)).toEqual([{
+      reason: 'mileage_mismatch',
+      evidence: [
+        { kind: 'text', start, end, excerpt: fragment },
+        { kind: 'field', field: 'mileage', value: '90,000 km' },
+      ],
+    }]);
+  });
+
   test('retains maintenance context when the provider extracts only the distance', async () => {
     const text = 'Timing belt and service done at 60,000km.';
     const { gateway } = fakeGateway({ clairic: () => clairicResult(text, { mileage_statement: '60,000km' }) });
